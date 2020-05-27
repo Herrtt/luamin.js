@@ -10,7 +10,7 @@ Originally written by Stravant, rewritten by Herrtt#3868
 
 #### In Command Line
 
-Download and extract this page
+Download and extract this project
 Paste your script in *input.lua*
 Run in cmd
 ```
@@ -21,7 +21,7 @@ Voila, your script has appeared in *output.lua*
 
 #### As a module
 
-Download **luamin.js** and paste it
+Download **luamin.js** and paste it in desired folder.
 
 ```
 // Everything should explain itself.
