@@ -255,8 +255,6 @@ function CreateLuaTokenStream(text) {
     let tokens = 0
     function token(type) {
         tokens++
-        let start = `${'0'.repeat(4 - tokens.toString(16).length)}${tokens.toString(16)}`
-
         let tk = {
             'Type': type,
             'LeadingWhite': text.substr(whiteStart, (tokenStart - whiteStart)),
