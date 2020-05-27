@@ -5,6 +5,8 @@
     ok
 
     // Important stuff
+    // YOU NEED NODE INSTALLED TO PATH! https://nodejs.org/en/download/
+
 
     const luamin = require("./luamin") // To require the library
 
