@@ -2,9 +2,8 @@
 Lua Beautifier & Minfier, written in JavaScript.
 Originally written by Stravant, rewritten by Herrtt#3868
 
-###### Required to use
+###### Required to use (cli version)
 > node.js (https://nodejs.org/en/download/)
-> iq above 20
 
 ###### How to use?
 
