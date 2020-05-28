@@ -2117,8 +2117,8 @@ function FormatAst(ast) {
     function applyIndent(token) {
         let indentString = `\n${"\t".repeat(currentIndent)}`
         if (token.LeadingWhite == '' || (token.LeadingWhite.substr(-indentString.length, -1) != indentString)) {
-            //token.LeadingWhite = token.LeadingWhite.replace("\n?[\t ]*$") // Todo:Remove all \n & \t at end of string
-            // idk string patterns :(
+            //token.LeadingWhite = token.LeadingWhite.replace("\n?[\t ]*$") /Remove all \n & \t at end of string
+            // idk string patterns in js :(
 
             let newstr = ""
             let i
@@ -2457,10 +2457,10 @@ function StripAst(ast) {
 
     function joint(tokenA, tokenB) {
         stript(tokenB)
-        let lastCh = tokenA.Source.substr(-1,1)
-        let firstCh = tokenA.Source.substr(1,1)
+        let lastCh = tokenA.Source.substr(-0,1)
+        let firstCh = tokenB.Source.substr(0,1)
 
-        if ((lastCh == "-" && firstCh == "-") || (AllIdentChars[lastCh] && AllIdentChars[firstCh])) {
+        if ((lastCh == "-" && firstCh == "-") || (AllIdentChars[lastCh] != null && AllIdentChars[firstCh] != null)) {
             tokenB.LeadingWhite = ' '
         } else {
             tokenB.LeadingWhite = ""
@@ -2481,11 +2481,331 @@ function StripAst(ast) {
     }
 
     stripExpr = function(expr) {
-        // Todo
+        if (expr.Type == "BinopExpr") {
+            stripExpr(expr.Lhs)
+            stript(expr.Token_Op)
+            stripExpr(expr.Rhs)
+
+            joint(expr.Token_Op, expr.Rhs.GetFirstToken())
+            joint(expr.Lhs.GetLastToken(), expr.Token_Op)
+        } else if(expr.Type == "UnopExpr") {
+            stript(expr.Token_Op)
+            stripExpr(expr.Rhs)
+
+            joint(expr.Token_Op, expr.Rhs.GetFirstToken())
+        } else if(expr.Type == "NumberLiteral" || expr.Type == "StringLiteral"
+                || expr.Type == "NilLiteral" || expr.Type == "BooleanLiteral"
+                || expr.Type == "VargLiteral")
+        {
+            stript(expr.Token)
+        } else if(expr.Type == "FieldExpr") {
+            stripExpr(expr.Base)
+            stript(expr.Token_Dot)
+            stript(expr.Field)
+        } else if(expr.Type == "IndexExpr") {
+            stripExpr(expr.Base)
+            stript(expr.Token_OpenBracket)
+            stripExpr(expr.Index)
+            stript(expr.Token_CloseBracket)
+        } else if(expr.Type == "MethodExpr" || expr.Type == "CallExpr") {
+            stripExpr(expr.Base)
+            if (expr.Type == "MethodExpr") {
+                stript(expr.Token_Colon)
+                stript(expr.Method)
+            }
+            if (expr.FunctionArguments.CallType == "StringCall") {
+                stript(expr.FunctionArguments.Token)
+            } else if(expr.FunctionArguments.CallType == "ArgCall") {
+                stript(expr.FunctionArguments.Token_OpenParen)
+                expr.FunctionArguments.ArgList.forEach((argExpr, index) => {
+                    stripExpr(argExpr)
+                    let sep = expr.FunctionArguments.Token_CommaList[index]
+                    if (sep) {
+                        stript(sep)
+                    }
+                })
+                stript(expr.FunctionArguments.Token_CloseParen)
+            } else if(expr.FunctionArguments.CallType == "TableCall") {
+                stripExpr(expr.FunctionArguments.TableExpr)
+            }
+        } else if(expr.Type == "FunctionLiteral") {
+            stript(expr.Token_Function)
+            stript(expr.Token_OpenParen)
+            expr.ArgList.forEach((arg, index) => {
+                stript(arg)
+                let comma = expr.Token_ArgCommaList[index]
+                if (comma != null) {
+                    stript(comma)
+                }
+            })
+            if (expr.Token_Varg != null) {
+                stript(expr.Token_Varg)
+            }
+            stript(expr.Token_CloseParen)
+            bodyjoint(expr.Token_CloseParen, expr.Body, expr.Token_End)
+        } else if(expr.Type == "VariableExpr") {
+            stript(expr.Token)
+        } else if(expr.Type == "ParenExpr") {
+            stript(expr.Token_OpenParen)
+            stripExpr(expr.Expression)
+            stript(expr.Token_CloseParen)
+        } else if(expr.Type == "TableLiteral") {
+            stript(expr.Token_OpenBrace)
+            expr.EntryList.forEach((entry, index) => {
+                if (entry.EntryType == "Field") {
+                    stript(entry.Field)
+                    stript(entry.Token_Equals)
+                    stripExpr(entry.Value)
+                } else if(entry.EntryType == "Index") {
+                    stript(entry.Token_OpenBrace)
+                    stripExpr(entry.Index)
+                    stript(entry.Token_CloseBracket)
+                    stript(entry.Token_Equals)
+                    stripExpr(entry.Value)
+                } else if(entry.EntryType == "Value") {
+                    stripExpr(entry.Value)
+                } else {
+                    assert(false, "unreachable")
+                }
+                let sep = expr.Token_SeperatorList[index]
+                if (sep != null) {
+                    stript(sep)
+                }
+            })
+            
+            expr.Token_SeperatorList[expr.EntryList.length-1] = null
+            stript(expr.Token_CloseBrace)
+        } else {
+            throw(`unreachable, type: ${expr.Type}:${expr}  ${console.trace()}`)
+        }
     }
     
     stripStat = function(stat) {
-        // Todo
+
+        if (stat.Type == "StatList") {
+            let i
+            for (i=0; i<=stat.StatementList.length;i++) {
+                let chStat = stat.StatementList[i]
+                if (chStat == null) continue;
+                
+                stripStat(chStat)
+                stript(chStat.GetFirstToken())
+
+                let lastChStat = stat.StatementList[i-1]
+                if (lastChStat != null) {
+
+                    if (stat.SemicolonList[i-1]
+                        && lastChStat.GetLastToken().Source != ")" || chStat.GetFirstToken().Source != ")") 
+                    {
+                        stat.SemicolonList[i-1] = null
+                    }
+
+                    if (!stat.SemicolonList[i-1]) {
+                        joint(lastChStat.GetLastToken(), chStat.GetFirstToken())
+                    }
+                }
+            }
+
+            stat.SemicolonList[stat.StatementList.length-1] = null
+            if (stat.StatementList.length > 0) {
+                stript(stat.StatementList[0].GetFirstToken())
+            }
+        } else if(stat.Type == "BreakStat") {
+            stript(stat.Token_Break)
+        } else if(stat.Type == "ReturnStat") {
+            stript(stat.Token_Return)
+            stat.ExprList.forEach((expr, index) => {
+                stripExpr(expr)
+                if (stat.Token_CommaList[index] != null) {
+                    stript(stat.Token_CommaList[index])
+                }
+            })
+            if (stat.ExprList.length > 0) {
+                joint(stat.Token_Return, stat.ExprList[0].GetFirstToken())
+            }
+        } else if(stat.Type == "LocalVarStat") {
+            stript(stat.Token_Local)
+            stat.VarList.forEach((_var, index) => {
+                if (index == 0) {
+                    joint(stat.Token_Local, _var)
+                } else {
+                    stript(_var)
+                }
+                let comma = stat.Token_VarCommaList[index]
+                if (comma != null) {
+                    stript(comma)
+                }
+            })
+            if (stat.Token_Equals != null) {
+                stript(stat.Token_Equals)
+                stat.ExprList.forEach((expr, index) => {
+                    //A:console.log(expr)
+                    stripExpr(expr)
+                    let comma = stat.Token_ExprCommaList[index]
+                    if (comma != null) {
+                        stript(comma)
+                    }
+                })
+            }
+        } else if(stat.Type == "LocalFunctionStat") {
+            stript(stat.Token_Local)
+            joint(stat.Token_Local, stat.FunctionStat.Token_Function)
+            joint(stat.FunctionStat.Token_Function, stat.FunctionStat.NameChain[0])
+            joint(stat.FunctionStat.NameChain[0], stat.FunctionStat.Token_OpenParen)
+
+            stat.FunctionStat.ArgList.forEach((arg, index) => {
+                stript(arg)
+                let comma = stat.FunctionStat.Token_ArgCommaList[index]
+                if (comma != null) {
+                    stript(comma)
+                }
+            })
+            if (stat.FunctionStat.Token_Varg) {
+                stript(stat.FunctionStat.Token_Varg)
+            }
+            stript(stat.FunctionStat.Token_CloseParen)
+            bodyjoint(stat.FunctionStat.Token_CloseParen, stat.FunctionStat.Body, stat.FunctionStat.Token_End)
+        } else if(stat.Type == "FunctionStat") {
+            stript(stat.Token_Function)
+            stat.NameChain.forEach((part, index) => {
+                if (index == 0) {
+                    joint(stat.Token_Function, part)
+                } else {
+                    stript(part)
+                }
+                let sep = stat.Token_NameChainSeperator[index]
+                if (sep != null) {
+                    stript(sep)
+                }
+            })
+            stript(stat.Token_OpenParen)
+            stat.ArgList.forEach((arg, index) => {
+                stript(arg)
+                let comma = stat.Token_ArgCommaList[index]
+                if (comma != null) {
+                    stript(comma)
+                }
+            })
+
+            if (stat.Token_Varg) {
+                stript(stat.Token_Varg)
+            }
+            stript(stat.Token_CloseParen)
+            bodyjoint(stat.Token_CloseParen, stat.Body, stat.Token_End)
+        } else if(stat.Type == "RepeatStat") {
+            stript(stat.Token_Repeat)
+            bodyjoint(stat.Token_Repeat, stat.Body, stat.Token_Until)
+            stripExpr(stat.Condition)
+            joint(stat.Token_Until, stat.Condition.GetFirstToken())
+        } else if(stat.Type == "GenericForStat") {
+            stript(stat.Token_For)
+            stat.VarList.forEach((_var, index) => {
+                if (index == 0) {
+                    joint(stat.Token_For, _var)
+                } else {
+                    stript(_var)
+                }
+                let sep = stat.Token_VarCommaList[index]
+                if (sep != null) {
+                    stript(sep)
+                }
+            })
+            joint(stat.VarList[stat.VarList.length-1], stat.Token_In)
+            stat.GeneratorList.forEach((expr, index) => {
+                stripExpr(expr)
+                if (index == 0) {
+                    joint(stat.Token_In, expr.GetFirstToken())
+                }
+                let sep = stat.Token_GeneratorCommaList[index]
+                if (sep != null) {
+                    stript(sep)
+                }
+            })
+            joint(stat.GeneratorList[stat.GeneratorList.length-1].GetLastToken(), stat.Token_Do)
+            bodyjoint(stat.Token_Do, stat.Body, stat.Token_End)
+        } else if(stat.Type == "NumericForStat") {
+            stript(stat.Token_For)
+            stat.VarList.forEach((_var, index) => {
+                if (index == 0) {
+                    joint(stat.Token_For, _var)
+                } else {
+                    stript(_var)
+                }
+                let sep = stat.Token_VarCommaList[index]
+                if (sep) {
+                    stript(sep)
+                }
+            })
+            joint(stat.VarList[stat.VarList.length-1], stat.Token_Equals)
+            stat.RangeList.forEach((expr, index) => {
+                stripExpr(expr)
+                if (index == 0) {
+                    joint(stat.Token_Equals, expr.GetFirstToken())
+                }
+                let sep = stat.Token_RangeCommaList[index]
+                if (sep != null) {
+                    stript(sep)
+                }
+            })
+            joint(stat.RangeList[stat.RangeList.length-1].GetLastToken(), stat.Token_Do)
+            bodyjoint(stat.Token_Do, stat.Body, stat.Token_End)
+        } else if(stat.Type == "WhileStat") {
+            stript(stat.Token_While)
+            stripExpr(stat.Condition)
+            stript(stat.Token_Do)
+            joint(stat.Token_While, stat.Condition.GetFirstToken())
+            joint(stat.Condition.GetLastToken(), stat.Token_Do)
+            bodyjoint(stat.Token_Do, stat.Body, stat.Token_End)
+        } else if(stat.Type == "DoStat") {
+            stript(stat.Token_Do)
+            stript(stat.Token_End)
+            bodyjoint(stat.Token_Do, stat.Body, stat.Token_End)
+        } else if(stat.Type == "IfStat") {
+            stript(stat.Token_If)
+            stripExpr(stat.Condition)
+            joint(stat.Token_If, stat.Condition.GetFirstToken())
+            joint(stat.Condition.GetLastToken(), stat.Token_Then)
+
+            let lastBodyOpen = stat.Token_Then
+            let lastBody = stat.Body
+
+            stat.ElseClauseList.forEach((clause) => {
+                bodyjoint(lastBodyOpen, lastBody, clause.Token)
+                lastBodyOpen = clause.Token
+
+                if (clause.Condition != null) {
+                    stripExpr(clause.Condition)
+                    joint(clause.Token, clause.Condition.GetFirstToken())
+                    joint(clause.Condition.GetLastToken(), clause.Token_Then)
+                    lastBodyOpen = clause.Token_Then
+                }
+                stripStat(clause.Body)
+                lastBody = clause.Body            
+            })
+
+            bodyjoint(lastBodyOpen, lastBodyOpen, stat.Token_End)
+        } else if(stat.Type == "CallExprStat") {
+            stripExpr(stat.Expression)
+        } else if(stat.Type == "AssignmentStat") {
+            stat.Lhs.forEach((ex, index) => {
+                stripExpr(ex)
+                let sep = stat.Token_LhsSeperatorList[index]
+                if (sep != null) {
+                    stript(sep)
+                }
+            })
+            stript(stat.Token_Equals)
+            stat.Rhs.forEach((ex, index) => {
+                stripExpr(ex)
+                let sep = stat.Token_RhsSeperatorList[index]
+                if (sep != null) {
+                    stript(sep)
+                }
+            })
+        } else {
+            print(`unreachable, type: ${stat.Type}`,stat)
+            assert(false, `unreachable, type: ${stat.Type}:${stat}`)
+        }
     }
 
     stripStat(ast)

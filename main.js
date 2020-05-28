@@ -27,7 +27,7 @@
 let inputFile = "./input.lua" // Where to grab the input file
 let outputFile = "output.lua" // Where to write output
 
-const option = "beautify" // Option, minify / beautify
+const option = "m" // Option, minify / beautify
 const renameVariables = true
 const renameGlobals = true
 

@@ -3085,29 +3085,18 @@ function module.Minify(scr, renameGlobals)
 	StripAst(ast)
 	local result = PrintAst(ast)
 	--
-    print("RESULT:",result)
-
+    return result
 end
 function module.Beautify(scr, renameVars, renameGlobals)
 	local ast = CreateLuaParser(scr)
-	print("Created lua parser")
-
 	local glb, root = AddVariableInfo(ast)
-	print("Added variable info")
-
 	if renameVars then
 		BeautifyVariables(glb, root, renameGlobals)
-		print("Beautified variables")
 	end
 	FormatAst(ast)
-	print("Formatted ast")
 	local result = PrintAst(ast)
 	--
-	print("RESULT:",result)
+	return result
 end
-
-module.Beautify([==[
-    local a = true
-]==], true, true)
 
 return module
