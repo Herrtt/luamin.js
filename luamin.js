@@ -2449,7 +2449,46 @@ function FormatAst(ast) {
 }
 
 function StripAst(ast) {
-    // Todo
+    let stripStat
+    let stripExpr
+    function stript(token) {
+        token.LeadingWhite = ''
+    }
+
+    function joint(tokenA, tokenB) {
+        stript(tokenB)
+        let lastCh = tokenA.Source.substr(-1,1)
+        let firstCh = tokenA.Source.substr(1,1)
+
+        if ((lastCh == "-" && firstCh == "-") || (AllIdentChars[lastCh] && AllIdentChars[firstCh])) {
+            tokenB.LeadingWhite = ' '
+        } else {
+            tokenB.LeadingWhite = ""
+        }
+    }
+
+    function bodyjoint(open, body, close) {
+        stripStat(body)
+        stript(close)
+        let bodyFirst = body.GetFirstToken()
+        let bodyLast = body.GetLastToken()
+        if (bodyFirst != null) {
+            joint(open, bodyFirst)
+            joint(bodyLast, close)
+        } else {
+            joint(open, close)
+        }
+    }
+
+    stripExpr = function(expr) {
+        // Todo
+    }
+    
+    stripStat = function(stat) {
+        // Todo
+    }
+
+    stripStat(ast)
 }
 
 
