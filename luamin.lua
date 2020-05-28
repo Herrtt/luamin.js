@@ -3099,11 +3099,4 @@ function module.Beautify(scr, renameVars, renameGlobals)
 	return result
 end
 
-print(module.Minify([[
-	if true then
-		print("Hello World!")
-	elseif true then
-	end
-]]))
-
 return module

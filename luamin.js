@@ -337,11 +337,13 @@ function CreateLuaTokenStream(text) {
                 if (c2 == '\\') {
                     let c3 = get()
                     let esc = CharacterForEscape[c3]
-                    if (!esc) {
-                        error(`Invalid Escape Sequence \`${c3}\`.`)
+                    if (esc == null) {
+                        throw (`Invalid Escape Sequence \`${c3}\`.`)
                     }
                 } else if(c2 == c1) {
                     break
+                } else if(c2 == "") {
+                    throw ("No")
                 }
             }
             token('String')
@@ -980,6 +982,7 @@ function CreateLuaParser(text) {
                 "GetFirstToken": () => node.Lhs[0].GetFirstToken(),
                 "GetLastToken": () => node.Rhs[node.Rhs.length - 1].GetLastToken(),
             })
+            return node
         }
     }
 
@@ -1819,7 +1822,7 @@ function AddVariableInfo(ast) {
     visitor.AssignmentStat = {
         "Post": function(stat) {
             stat.Lhs.forEach((ex) => {
-                if (ex.Variable) {
+                if (ex.Variable != null) {
                     ex.Variable.AssignedTo = true
                 }
             })
@@ -2091,7 +2094,7 @@ function PrintAst(ast) {
             stat.Lhs.forEach((ex, index) => {
                 printExpr(ex)
                 let sep = stat.Token_LhsSeperatorList[index]
-                 if (sep != null) {
+                if (sep != null) {
                     printt(sep)
                 }
             })
@@ -2099,7 +2102,9 @@ function PrintAst(ast) {
             stat.Rhs.forEach((ex, index) => {
                 printExpr(ex)
                 let sep = stat.Token_RhsSeperatorList[index]
-                if (sep) printt(sep);
+                if (sep != null) {
+                    printt(sep);
+                }
             })
         } else {
             assert(false, "unreachable")
@@ -2523,7 +2528,7 @@ function StripAst(ast) {
                 expr.FunctionArguments.ArgList.forEach((argExpr, index) => {
                     stripExpr(argExpr)
                     let sep = expr.FunctionArguments.Token_CommaList[index]
-                    if (sep) {
+                    if (sep != null) {
                         stript(sep)
                     }
                 })
@@ -2734,7 +2739,7 @@ function StripAst(ast) {
                     stript(_var)
                 }
                 let sep = stat.Token_VarCommaList[index]
-                if (sep) {
+                if (sep != null) {
                     stript(sep)
                 }
             })
@@ -3081,7 +3086,7 @@ module.exports.Minify = function(scr, renameVars, renameGlobals) {
     let ast = CreateLuaParser(scr)
     let [glb, root] = AddVariableInfo(ast)
 
-    if (renameVars) {
+    if (renameVars == true) {
         MinifyVariables_2(glb, root, renameGlobals)
     }
 
@@ -3096,10 +3101,11 @@ module.exports.Beautify = function(scr, renameVars, renameGlobals) {
     let ast = CreateLuaParser(scr)
     let [glb, root] = AddVariableInfo(ast)
 
-    if (renameVars) {
+    if (renameVars == true) {
         BeautifyVariables(glb, root, renameGlobals)
     }
     FormatAst(ast)
+
     let result = PrintAst(ast)
     result = `${signatur}\n\n${result}`
 

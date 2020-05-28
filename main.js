@@ -58,6 +58,7 @@ function Main() {
         if (writeWhat != null) {
             fs.writeFile(outputFile, writeWhat, (err) => {
                 if (err) throw err;
+                console.log(`saved to ${outputFile}`)
             })
         } else {
             throw("Invalid option")
@@ -188,11 +189,11 @@ async function ask(q, _callback) {
                     }
                 }
             }
-
             sleep(5)
         }
 
         rl.close()
+        return true
     }
     await main()
 
@@ -201,18 +202,7 @@ async function ask(q, _callback) {
 ask(questions, () => {
     try {
         Main()
-        console.log(`saved to ${outputFile}`)
     } catch(err) {
         console.log(`Failed to run program! ${err}`)
     }
 })
-
-/*
-rl.question('What do you think of Node.js? ', (answer) => {
-    // TODO: Log the answer in a database
-    console.log(`Thank you for your valuable feedback: ${answer}`);
-  
-    rl.close()
-});*/
-
-
