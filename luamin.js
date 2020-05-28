@@ -3079,7 +3079,7 @@ function BeautifyVariables(globalScope, rootScope, renameGlobals) {
 
 // hi
 
-let signatur = `--[[\n\tcode beautified using luamin.js, Herrtt#3868\n--]]`
+let signatur = `--[[\n\tcode generated using luamin.js, Herrtt#3868\n--]]`
 
 
 module.exports.Minify = function(scr, renameVars, renameGlobals) {
