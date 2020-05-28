@@ -11,8 +11,6 @@
 
     // Both functions (Minify & Beautify) will return the outputted values
 
-
-    // Minify not added yet :(
     <string> luamin.Minify(<string> src [, <bool> RenameVariables | false, <bool> RenameGlobals | false])
     <string> luamin.Beautify(<string> src [, <bool> RenameVariables | false, <bool> RenameGlobals | false])
 
@@ -102,7 +100,7 @@ async function ask(q, _callback) {
 
     function ask(questionText) {
         return new Promise((resolve, reject) => {
-          rl.question(questionText, (input) => resolve(input) );
+          rl.question(questionText, (input) => resolve(input) ); // thanks stackoverflow
         });
     }
     
