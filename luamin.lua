@@ -210,7 +210,6 @@ function CreateLuaTokenStream(text)
     local tokenStart = 1
     
     local function token(type)
-        print(type,":",text:sub(tokenStart, p-1))
 		local tk = {
 			Type = type;
 			LeadingWhite = text:sub(whiteStart, tokenStart-1);
@@ -2750,6 +2749,7 @@ local function StripAst(ast)
 				lastBody = clause.Body
 			end
 			--
+			print(FormatTable(lastBodyOpen), FormatTable(lastBody))
 			bodyjoint(lastBodyOpen, lastBody, stat.Token_End)
 		elseif stat.Type == 'CallExprStat' then
 			stripExpr(stat.Expression)
@@ -3098,5 +3098,12 @@ function module.Beautify(scr, renameVars, renameGlobals)
 	--
 	return result
 end
+
+print(module.Minify([[
+	if true then
+		print("Hello World!")
+	elseif true then
+	end
+]]))
 
 return module

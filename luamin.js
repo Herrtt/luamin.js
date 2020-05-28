@@ -1466,7 +1466,7 @@ function VisitAst(ast, visitors) {
             visitExpr(stat.Condition)
             visitStat(stat.Body)
             stat.ElseClauseList.forEach((clause) => {
-                if (clause.Condition) {
+                if (clause.Condition != null) {
                     visitExpr(clause.Condition)
                 }
                 visitStat(clause.Body)
@@ -2078,7 +2078,7 @@ function PrintAst(ast) {
             printStat(stat.Body)
             stat.ElseClauseList.forEach((clause) => {
                 printt(clause.Token)
-                if (clause.Condition) {
+                if (clause.Condition != null) {
                     printExpr(clause.Condition)
                     printt(clause.Token_Then)
                 }
@@ -2116,7 +2116,7 @@ function FormatAst(ast) {
     let currentIndent = 0
     function applyIndent(token) {
         let indentString = `\n${"\t".repeat(currentIndent)}`
-        if (token.LeadingWhite == '' || (token.LeadingWhite.substr(-indentString.length, -1) != indentString)) {
+        if (token.LeadingWhite == '' || (token.LeadingWhite.substr(-indentString.length, indentString.length) != indentString)) {
             //token.LeadingWhite = token.LeadingWhite.replace("\n?[\t ]*$") /Remove all \n & \t at end of string
             // idk string patterns in js :(
 
@@ -2408,7 +2408,7 @@ function FormatAst(ast) {
                 formatBody(lastBodyOpen, lastBody, clause.Token)
                 lastBodyOpen = clause.Token
 
-                if (clause.Condition) {
+                if (clause.Condition != null) {
                     formatExpr(clause.Condition)
                     padExpr(clause.Condition)
                     padToken(clause.Token_Then)
@@ -2456,7 +2456,9 @@ function StripAst(ast) {
     }
 
     function joint(tokenA, tokenB) {
+
         stript(tokenB)
+        
         let lastCh = tokenA.Source.substr(-0,1)
         let firstCh = tokenB.Source.substr(0,1)
 
@@ -2472,6 +2474,7 @@ function StripAst(ast) {
         stript(close)
         let bodyFirst = body.GetFirstToken()
         let bodyLast = body.GetLastToken()
+
         if (bodyFirst != null) {
             joint(open, bodyFirst)
             joint(bodyLast, close)
@@ -2557,7 +2560,7 @@ function StripAst(ast) {
                     stript(entry.Token_Equals)
                     stripExpr(entry.Value)
                 } else if(entry.EntryType == "Index") {
-                    stript(entry.Token_OpenBrace)
+                    stript(entry.Token_OpenBracket)
                     stripExpr(entry.Index)
                     stript(entry.Token_CloseBracket)
                     stript(entry.Token_Equals)
@@ -2581,7 +2584,6 @@ function StripAst(ast) {
     }
     
     stripStat = function(stat) {
-
         if (stat.Type == "StatList") {
             let i
             for (i=0; i<=stat.StatementList.length;i++) {
@@ -2769,7 +2771,7 @@ function StripAst(ast) {
             let lastBodyOpen = stat.Token_Then
             let lastBody = stat.Body
 
-            stat.ElseClauseList.forEach((clause) => {
+            stat.ElseClauseList.forEach((clause, i) => {
                 bodyjoint(lastBodyOpen, lastBody, clause.Token)
                 lastBodyOpen = clause.Token
 
@@ -2779,11 +2781,12 @@ function StripAst(ast) {
                     joint(clause.Condition.GetLastToken(), clause.Token_Then)
                     lastBodyOpen = clause.Token_Then
                 }
+
                 stripStat(clause.Body)
                 lastBody = clause.Body            
             })
 
-            bodyjoint(lastBodyOpen, lastBodyOpen, stat.Token_End)
+            bodyjoint(lastBodyOpen, lastBody, stat.Token_End)
         } else if(stat.Type == "CallExprStat") {
             stripExpr(stat.Expression)
         } else if(stat.Type == "AssignmentStat") {
@@ -2804,7 +2807,7 @@ function StripAst(ast) {
             })
         } else {
             print(`unreachable, type: ${stat.Type}`,stat)
-            assert(false, `unreachable, type: ${stat.Type}:${stat}`)
+            throw(`unreachable, type: ${stat.Type}:${stat}`)
         }
     }
 

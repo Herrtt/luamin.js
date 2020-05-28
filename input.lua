@@ -1,5 +1,5 @@
-if true then
-    print("Hello World!")
-else
-    print("No")
-end
+--[[
+    Put your script in here!
+]]
+
+print("Hello World!")
