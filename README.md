@@ -11,7 +11,7 @@ Originally written by Stravant, rewritten by Herrtt#3868
 
 Download and extract this project
 Paste your script in *input.lua*
-Run in cmd
+Run in cmd or open the !run.bat
 ```
 node main.js
 ```
