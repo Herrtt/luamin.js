@@ -198,8 +198,8 @@ function CreateLuaTokenStream(text) {
             }
         }
         let i_;
-        for (_ = 0; _ < tokenBuffer; _++) {
-            let token = tokenBuffer[i]
+        for (i_ = 0; i_ < tokenBuffer; i_++) {
+            let token = tokenBuffer[i_]
             print(`${token.Type}<${token.Source}>`)
         }
         throw `file<${line}:${char}>: ${str}`
@@ -528,9 +528,6 @@ function CreateLuaParser(text) {
             return t
         }
 
-        if (getl == null) {
-            console.log("WHAT?", node)
-        }
         node.GetLastToken = function() {
             let t = getl(self)
             assert(t)
@@ -2276,7 +2273,8 @@ function FormatAst(ast) {
                 applyIndent(expr.Token_CloseBrace)
             }
         } else {
-            assert(false, `unreachable, type: ${expr.Type}:${expr}`)
+            print(expr)
+            throw(`unreachable, type: ${expr.Type}:`+ expr)
         }
     }
 
@@ -2307,11 +2305,13 @@ function FormatAst(ast) {
             })
             if (stat.Token_Equals) {
                 padToken(stat.Token_Equals)
-                
+
                 stat.ExprList.forEach((expr,index) => {
-                    formatExpr(expr)
-                    padExpr(expr)
-                    let comma = stat.Token_ExprCommaList[index]
+                    if (expr != null) {
+                        formatExpr(expr)
+                        padExpr(expr)
+                        let comma = stat.Token_ExprCommaList[index]
+                    }
                 })
             }
         } else if(stat.Type == "LocalFunctionStat") {
@@ -2650,7 +2650,6 @@ function StripAst(ast) {
             if (stat.Token_Equals != null) {
                 stript(stat.Token_Equals)
                 stat.ExprList.forEach((expr, index) => {
-                    //A:console.log(expr)
                     stripExpr(expr)
                     let comma = stat.Token_ExprCommaList[index]
                     if (comma != null) {
@@ -2821,6 +2820,338 @@ function StripAst(ast) {
     }
 
     stripStat(ast)
+}
+
+
+function SolveMath(ast) { // This is some ugly code sorry for whoever is seeing this
+    let solveStat
+    let solveExpr
+
+    let canSolve = {
+        "NumberLiteral": true,
+        "BooleanLiteral": true,
+        "StringLiteral": true,
+        "NilLiteral": true,
+        "TableLiteral": true,
+        "ParenExpr": true,
+    }
+
+    function createtype(type, val) {
+        let a
+        a = {
+            "Type": type,
+            "Token": {
+                "Type": "Number",
+                "LeadingWhite": "",
+                "Source": "" + val,
+            },
+            "GetFirstToken": () => a.Token,
+            "GetLastToken": () => a.Token,
+        }
+        return a
+    }
+
+    function createtype2(type, val) {
+        let a
+        a = {
+            "Type": type,
+            "LeadingWhite": "",
+            "Source": "" + val,
+        }
+        return a
+    }
+
+    function createbinop(operator, lhs, rhs) {
+        let a
+        a = {
+            "Type": "BinopExpr",
+            "Token_Op": {"Type":"Symbol", "LeadingWhite":"", "Source": operator},
+            "Lhs": lhs,
+            "Rhs": rhs,
+            "GetFirstToken": () => a.Lhs.GetFirstToken(),
+            "GetLastToken": () => a.Rhs.GetLastToken(),
+        }
+        return a
+    }
+
+    function replace(a,b) {
+        for (var [i,v] of Object.entries(a)) {
+            a[i] = null
+        }
+
+        for (var [i,v] of Object.entries(b)) {
+            a[i] = v
+        }
+    }
+
+    function solvebinop(operator, lhs, rhs) {
+        let a = lhs.Token
+        let b = rhs.Token
+
+        if (a == null || b == null) return;
+        if (a.Source == null || b.Source == null) return;
+
+        let lSrc = a.Source
+        let rSrc = b.Source
+
+        let left
+        let right
+        if (lhs.Type == "BooleanLiteral") left = lSrc == "true" ? "true" : "false";
+        if (rhs.Type == "BooleanLiteral") right = rSrc == "true" ? "true" : "false";
+
+        if (lhs.Type == "NumberLiteral") {
+            left = parseFloat(lSrc)
+            if (left == null) return;
+        }
+        if (rhs.Type == "NumberLiteral") {
+            right = parseFloat(rSrc)
+            if (right == null) return;
+        }
+        if (lhs.Type == "StringLiteral") left = toString(lSrc);
+        if (rhs.Type == "StringLiteral") right = toString(rSrc);
+
+        if (operator == "==") return left == right;
+        if (operator == "~=") return left != right;
+        if (left != null && right != null) {
+            if (operator == "+") return left + right;
+            if (operator == "-") return left - right;
+            if (operator == "*") return left * right;
+            if (operator == "/") return left / right;
+            if (operator == "^") return left ** right;
+            if (operator == "%") return left % right;
+
+            if (operator == ">") return left > right;
+            if (operator == "<") return left < right;
+            if (operator == ">=") return left >= right;
+            if (operator == "<=") return left <= right;
+        }
+    }
+
+    function solveunop(operator, rhs) {
+        let b = rhs.Token || rhs.Expression || rhs.EntryList || rhs
+
+        if (b == null) return;
+        if (b.Source == null && rhs.Type != "TableLiteral") return;
+
+        let rSrc = b.Source
+        let right
+
+        if (rhs.Type == "TableLiteral" && b != null) {
+            let extra = []
+            let amount = 0
+            let metCall = false
+            b.forEach((v,i) => {
+                if (metCall) {
+                    extra.push(v)
+                } else {
+                    if (v.EntryType == "Value" || v.EntryType == "Index") {
+                        if (v.Index == null || (v.Index.Type == "NumberLiteral" && v.Value)) {
+                            if (v.Value.Type != "CallExpr") {
+                                amount++
+                            } else {
+                                metCall = true
+                                extra.push(v)
+                            }
+                        }
+                    }
+                }
+            })
+            // this became a mess really quick
+            rhs.EntryList = extra
+
+            if (rhs.EntryList.length <= 0) {
+                return createtype("NumberLiteral", amount || 0)
+            } else if(amount <= 0) {
+                return rhs
+            }
+
+            let newex = createbinop("+", createtype("NumberLiteral", amount), rhs);
+            return newex
+        }
+
+        if (rhs.Type == "BooleanLiteral") right = rSrc == "true" ? "true" : "false";
+        if (rhs.Type == "NumberLiteral") {
+            right = parseFloat(rSrc)
+            if (right == null) return;
+        }
+        if (rhs.Type == "StringLiteral") right = rSrc.substr(1,rSrc.length - 2);
+
+        if (right != null) {
+            if (operator == "#") return (right.length);
+        }
+    }
+
+    solveExpr = function(expr) {
+        
+        if (expr.Type == "BinopExpr") {
+
+            //if (expr.Lhs != null && canSolve[expr.Lhs.Type] != true) {
+                solveExpr(expr.Lhs)
+            //}
+
+            //if (expr.Rhs != null && canSolve[expr.Rhs.Type] != true) {
+                solveExpr(expr.Rhs)
+            //}
+
+            if (expr.Lhs != null && canSolve[expr.Lhs.Type] == true
+                && expr.Rhs != null && canSolve[expr.Rhs.Type] == true) {
+                let tokenOp = expr.Token_Op
+
+                if (tokenOp != null && tokenOp.Source != null) {
+                    let val = solvebinop(tokenOp.Source, expr.Lhs, expr.Rhs)
+
+                    if (val != null) {
+                        if (typeof(val) == "boolean") {
+                            let b = createtype("BooleanLiteral", val)
+                            replace(expr, b)
+                            return
+                        } else if(typeof(val) == "number") {
+                            if (isFinite(val) == true) {
+                                let num = createtype("NumberLiteral", val)
+                                replace(expr, num)
+                                return
+                            }
+                        }
+                    }
+                }
+            }
+        } else if(expr.Type == "UnopExpr") {
+
+            //if (expr.Rhs != null && canSolve[expr.Rhs.Type] != true) {
+                solveExpr(expr.Rhs)
+            //}
+
+            if (expr.Rhs != null && canSolve[expr.Rhs.Type] == true) {
+                let tokenOp = expr.Token_Op
+
+                if (tokenOp != null && tokenOp.Source != null) {
+                    let rhs = expr.Rhs.Expression != null ? expr.Rhs.Expression : expr.Rhs
+                    let val = solveunop(tokenOp.Source, rhs)
+
+                    if (val != null) {
+                        if (typeof(val) == "boolean") {
+                            let b = createtype("BooleanLiteral", val)
+                            replace(expr, b)
+                        } else if(typeof(val) == "number") {
+                            let num = createtype("NumberLiteral", val)
+                            replace(expr, num)
+                        } else if(typeof(val) == "object") {
+                            replace(expr, val)
+                        }
+                        return
+                    }
+                }
+            }
+
+            //solveExpr(expr.Rhs)
+        } else if(expr.Type == "NumberLiteral" || expr.Type == "StringLiteral"
+                || expr.Type == "NilLiteral" || expr.Type == "BooleanLiteral"
+                || expr.Type == "VargLiteral")
+        {
+            // ...
+        } else if(expr.Type == "FieldExpr") {
+            solveExpr(expr.Base)
+        } else if(expr.Type == "IndexExpr") {
+            solveExpr(expr.Base)
+            solveExpr(expr.Index)
+        } else if(expr.Type == "MethodExpr" || expr.Type == "CallExpr") {
+            solveExpr(expr.Base)
+            if(expr.FunctionArguments.CallType == "ArgCall") {
+                expr.FunctionArguments.ArgList.forEach((argExpr, index) => {
+                    solveExpr(argExpr)
+                })
+            } else if(expr.FunctionArguments.CallType == "TableCall") {
+                solveExpr(expr.FunctionArguments.TableExpr)
+            }
+        } else if(expr.Type == "FunctionLiteral") {
+            solveStat(expr.Body)
+        } else if(expr.Type == "VariableExpr") {
+            // Dont care
+        } else if(expr.Type == "ParenExpr") {
+            solveExpr(expr.Expression)
+        } else if(expr.Type == "TableLiteral") {
+            expr.EntryList.forEach((entry, index) => {
+                if (entry.EntryType == "Field") {
+                    solveExpr(entry.Value)
+                } else if(entry.EntryType == "Index") {
+                    solveExpr(entry.Index)
+                    solveExpr(entry.Value)
+                } else if(entry.EntryType == "Value") {
+                    solveExpr(entry.Value)
+                } else {
+                    assert(false, "unreachable")
+                }
+            })
+        } else {
+            //throw(`unreachable, type: ${expr.Type}:${expr}  ${console.trace()}`)
+        }
+    }
+    
+    solveStat = function(stat) {
+        if (stat.Type == "StatList") {
+            stat.StatementList.forEach((ch) => {
+                if (ch != null) solveStat(ch);
+            })
+        } else if(stat.Type == "BreakStat") {
+            // no
+        } else if(stat.Type == "ReturnStat") {
+            stat.ExprList.forEach((expr, index) => {
+                solveExpr(expr)
+            })
+        } else if(stat.Type == "LocalVarStat") {
+            if (stat.Token_Equals != null) {
+                stat.ExprList.forEach((expr, index) => {
+                    solveExpr(expr)
+                })
+            }
+        } else if(stat.Type == "LocalFunctionStat") {
+            solveStat(stat.FunctionStat.Body)
+        } else if(stat.Type == "FunctionStat") {
+            solveStat(stat.Body)
+        } else if(stat.Type == "RepeatStat") {
+            solveStat(stat.Body)
+            solveExpr(stat.Condition)
+        } else if(stat.Type == "GenericForStat") {
+            stat.GeneratorList.forEach((expr, index) => {
+                solveExpr(expr)
+            })
+            solveStat(stat.Body)
+        } else if(stat.Type == "NumericForStat") {
+            stat.RangeList.forEach((expr, index) => {
+                solveExpr(expr)
+            })
+            solveStat(stat.Body)
+        } else if(stat.Type == "WhileStat") {
+            solveExpr(stat.Condition)
+            solveStat(stat.Body)
+        } else if(stat.Type == "DoStat") {
+            solveStat(stat.Body)
+        } else if(stat.Type == "IfStat") {
+            solveExpr(stat.Condition)
+            solveStat(stat.Body)
+            stat.ElseClauseList.forEach((clause, i) => {
+                if (clause.Condition != null) {
+                    solveExpr(clause.Condition)
+                }  
+                solveStat(clause.Body)   
+            })
+
+        } else if(stat.Type == "CallExprStat") {
+            solveExpr(stat.Expression)
+        } else if(stat.Type == "AssignmentStat") {
+            stat.Lhs.forEach((ex, index) => {
+                solveExpr(ex)
+            })
+            stat.Rhs.forEach((ex, index) => {
+                solveExpr(ex)
+            })
+        } else {
+            //print(`unreachable, type: ${stat.Type}`,stat)
+            //throw(`unreachable, type: ${stat.Type}:${stat}`)
+        }
+    }
+
+    solveStat(ast)
 }
 
 
@@ -3083,11 +3414,15 @@ function BeautifyVariables(globalScope, rootScope, renameGlobals) {
 
 // hi
 
-let signatur = `--[[\n\tcode generated using luamin.js, Herrtt#3868\n--]]`
+let watermark = `--[[\n\tcode generated using luamin.js, Herrtt#3868\n--]]`
 
 let luaminp = {}
 
-luaminp.Minify = function(scr, renameVars, renameGlobals) {
+luaminp.Minify = function(scr, options) {
+    let renameVars = options.RenameVariables
+    let renameGlobals = options.RenameGlobals
+    let solveMath = options.SolveMath
+
     let ast = CreateLuaParser(scr)
     let [glb, root] = AddVariableInfo(ast)
 
@@ -3095,24 +3430,38 @@ luaminp.Minify = function(scr, renameVars, renameGlobals) {
         MinifyVariables_2(glb, root, renameGlobals)
     }
 
+    if (solveMath == true) {
+        SolveMath(ast) // oboy
+    }
+
     StripAst(ast)
 
     let result = PrintAst(ast)
+    result = `${watermark}\n\n${result}`
 
     return result
 }
 
-luaminp.Beautify = function(scr, renameVars, renameGlobals) {
+luaminp.Beautify = function(scr, options) {
+    let renameVars = options.RenameVariables
+    let renameGlobals = options.RenameGlobals
+    let solveMath = options.SolveMath
+
     let ast = CreateLuaParser(scr)
     let [glb, root] = AddVariableInfo(ast)
 
     if (renameVars == true) {
         BeautifyVariables(glb, root, renameGlobals)
     }
+
+    if (solveMath == true) {
+        SolveMath(ast) // oboy
+    }
+
     FormatAst(ast)
 
     let result = PrintAst(ast)
-    result = `${signatur}\n\n${result}`
+    result = `${watermark}\n\n${result}`
 
     return result
 }
@@ -3124,4 +3473,4 @@ try {
     }
 } catch(err) {/*idontcareboutthis*/}
 
-//export const luamin = luaminp
+//export {luaminp as luamin};

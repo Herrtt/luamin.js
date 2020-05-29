@@ -11,15 +11,21 @@
 
     // Both functions (Minify & Beautify) will return the outputted values
 
-    <string> luamin.Minify(<string> src [, <bool> RenameVariables | false, <bool> RenameGlobals | false])
-    <string> luamin.Beautify(<string> src [, <bool> RenameVariables | false, <bool> RenameGlobals | false])
+    const options = {
+        RenameVariables: <bool>,
+        RenameGlobals: <bool>,
+        SolveMath: <bool>,
+    }
+
+    <string> luamin.Minify(<string> src [, <object> options)
+    <string> luamin.Beautify(<string> src [, <object> options)
 
     Thats all you need to know to use this.
 */
 
 
 
-// I just wrote this quick cli program to use, no you dont have to use this
+// I just wrote this quick cli program
 // Options
 
 let inputFile = "./input.lua" // Where to grab the input file
@@ -30,6 +36,7 @@ let outputFile = "output.lua" // Where to write output
 let option = "b" // Option, minify / beautify
 let renameVariables = true
 let renameGlobals = true
+let solveMath = true
 
 
 // Ignore this shit
@@ -45,15 +52,25 @@ const sleep = (milliseconds) => {
 function Main() {
     fs.readFile(`${inputFile}`, "utf8", (err, src) => {
         if (err) throw err;
+
+        let opts = {
+            RenameVariables: renameVariables,
+            RenameGlobals: renameGlobals,
+            SolveMath: solveMath,
+        }
         
         let writeWhat
-        if (option.toLowerCase() == "beautify".substr(0,option.length).toLowerCase()) {
-            writeWhat = luamin.Beautify(src, renameVariables, renameGlobals)
-        } else if(option.toLowerCase() == "minify".substr(0,option.length).toLowerCase()) {
-            writeWhat = luamin.Minify(src, renameVariables, renameGlobals)
-        } else {
-            throw "No option? Gangster."
-        }
+        //try {
+            if (option.toLowerCase() == "beautify".substr(0,option.length).toLowerCase()) {
+                writeWhat = luamin.Beautify(src, opts)
+            } else if(option.toLowerCase() == "minify".substr(0,option.length).toLowerCase()) {
+                writeWhat = luamin.Minify(src, opts)
+            } else {
+                throw "No option? Gangster."
+            }
+        //} catch (err) {
+        //    throw(`FAILED ${err}:${err.stack}`)
+        //}
 
         if (writeWhat != null) {
             fs.writeFile(outputFile, writeWhat, (err) => {
@@ -61,7 +78,7 @@ function Main() {
                 console.log(`saved to ${outputFile}`)
             })
         } else {
-            throw("Invalid option")
+            throw("something went wront!")
         }
     })
 }
@@ -88,6 +105,12 @@ let questions = [
         Options: ["true", "false"],
         CaseSensitive: false,
         Callback: (opt) => renameGlobals=opt=="true"?true:false,
+    },
+    {
+        Question: "> Solve math? (%opts):",
+        Options: ["true", "false"],
+        CaseSensitive: false,
+        Callback: (opt) => solveMath=opt=="true"?true:false,
     },
 ]
 
