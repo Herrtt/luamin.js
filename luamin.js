@@ -343,7 +343,7 @@ function CreateLuaTokenStream(text) {
                 } else if(c2 == c1) {
                     break
                 } else if(c2 == "") {
-                    throw ("No")
+                    throw ("Unfinished string!")
                 }
             }
             token('String')
@@ -528,6 +528,9 @@ function CreateLuaParser(text) {
             return t
         }
 
+        if (getl == null) {
+            console.log("WHAT?", node)
+        }
         node.GetLastToken = function() {
             let t = getl(self)
             assert(t)
@@ -768,7 +771,8 @@ function CreateLuaParser(text) {
             node = MkNode({
                 "CallType": "StringCall",
                 "Token": get(),
-                "GetFirstToken": "todo"
+                "GetFirstToken": () => node.Token,
+                "GetLastToken": () => node.Token,
             })
             return node
         } else {
@@ -3081,8 +3085,9 @@ function BeautifyVariables(globalScope, rootScope, renameGlobals) {
 
 let signatur = `--[[\n\tcode generated using luamin.js, Herrtt#3868\n--]]`
 
+let luaminp = {}
 
-module.exports.Minify = function(scr, renameVars, renameGlobals) {
+luaminp.Minify = function(scr, renameVars, renameGlobals) {
     let ast = CreateLuaParser(scr)
     let [glb, root] = AddVariableInfo(ast)
 
@@ -3097,7 +3102,7 @@ module.exports.Minify = function(scr, renameVars, renameGlobals) {
     return result
 }
 
-module.exports.Beautify = function(scr, renameVars, renameGlobals) {
+luaminp.Beautify = function(scr, renameVars, renameGlobals) {
     let ast = CreateLuaParser(scr)
     let [glb, root] = AddVariableInfo(ast)
 
@@ -3111,3 +3116,12 @@ module.exports.Beautify = function(scr, renameVars, renameGlobals) {
 
     return result
 }
+
+try {
+    if (module != null && module.exports != null) {
+        module.exports.Beautify = luaminp.Beautify
+        module.exports.Minify = luaminp.Minify
+    }
+} catch(err) {/*idontcareboutthis*/}
+
+//export const luamin = luaminp
