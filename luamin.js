@@ -262,10 +262,6 @@ function CreateLuaTokenStream(text) {
         }
         tokenBuffer.push(tk)
 
-        if (tk.LeadingWhite == null) {
-            throw("WHAT?!")
-        }
-
         whiteStart = p
         tokenStart = p
         return tk
@@ -275,7 +271,7 @@ function CreateLuaTokenStream(text) {
     while (true) {
         // Mark the whitespace start
         whiteStart = p
-        while (true) {
+        while (true) { // remove comments
             let c = look()
             if (c == '') {
                 break
@@ -291,11 +287,13 @@ function CreateLuaTokenStream(text) {
                         if (eqcount != null) {
                             // Long comment body
                             longdata(eqcount)
+                            whiteStart = p
                         } else {
                             // Normal comment body
                             while (true) {
                                 let c2 = get()
                                 if (c2 == "" || c2 == "\n") {
+                                    whiteStart = p
                                     break
                                 }
                             }
@@ -305,6 +303,7 @@ function CreateLuaTokenStream(text) {
                         while (true) {
                             let c2 = get()
                             if (c2 == "" || c2 == "\n") {
+                                whiteStart = p
                                 break
                             }
                         }
@@ -319,8 +318,8 @@ function CreateLuaTokenStream(text) {
             }
         }
 
-        let leadingWhite = text.substr(whiteStart, (p - whiteStart))
         
+        let leadingWhite = text.substr(whiteStart, (p - whiteStart))
         // Mark the token start
         tokenStart = p
 
@@ -2178,6 +2177,7 @@ function FormatAst(ast) {
     }
 
     formatExpr = function(expr) {
+        //console.log(expr)
         if (expr.Type == "BinopExpr") {
             formatExpr(expr.Lhs)
             formatExpr(expr.Rhs)
