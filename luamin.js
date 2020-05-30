@@ -313,6 +313,7 @@ function CreateLuaTokenStream(text) {
                 }
             } else if(WhiteChars[c]) {
                 p++
+                //whiteStart = p // Idk I dont like white spaces
             } else {
                 break
             }
@@ -395,7 +396,7 @@ function CreateLuaTokenStream(text) {
         } else if(c1 == '[') {
             // Symbol or Long String
             let eqCount = getopen()
-            if (eqCount) {
+            if (eqCount != null) {
                 // Long String
                 longdata(eqCount)
                 token("String")
@@ -917,8 +918,8 @@ function CreateLuaParser(text) {
         } else {
             curNode = simpleexpr()
             assert(curNode, "nil sipleexpr")
-        }
-
+        }  
+    
         while (isBinop() && BinaryPriority[peek().Source][0] > limit) {
             let opTk = get()
             let rhs = subexpr(BinaryPriority[opTk.Source][1])
@@ -2177,7 +2178,6 @@ function FormatAst(ast) {
     }
 
     formatExpr = function(expr) {
-        //console.log(expr)
         if (expr.Type == "BinopExpr") {
             formatExpr(expr.Lhs)
             formatExpr(expr.Rhs)
@@ -2306,11 +2306,31 @@ function FormatAst(ast) {
             if (stat.Token_Equals) {
                 padToken(stat.Token_Equals)
 
+                let newlist = []
+                let newcommalist = []
+                stat.ExprList.forEach((expr,index) => {
+                    if (expr != null) {
+                        if (index < stat.VarList.length) {
+                            newlist.push(expr)
+                            newcommalist.push(stat.Token_ExprCommaList[index])
+                        } else if (expr.Type == "CallExpr" || expr.Type == "ParenExpr" || expr.Type == "VargLiteral" || expr.Type == "BinopExpr" || expr.Type == "UnopExpr") {
+                            newlist.push(expr)
+                            newcommalist.push(stat.Token_ExprCommaList[index])
+                        }
+                    }
+                })
+
+                stat.ExprList = newlist
+                stat.CommaList = newcommalist
+
                 stat.ExprList.forEach((expr,index) => {
                     if (expr != null) {
                         formatExpr(expr)
                         padExpr(expr)
                         let comma = stat.Token_ExprCommaList[index]
+                        if (comma != null && stat.ExprList.length-1 == index) {
+                            stat.Token_ExprCommaList[index] = null
+                        }
                     }
                 })
             }
@@ -2834,14 +2854,15 @@ function SolveMath(ast) { // This is some ugly code sorry for whoever is seeing 
         "NilLiteral": true,
         "TableLiteral": true,
         "ParenExpr": true,
+        "BinopExpr": true,
     }
 
-    function createtype(type, val) {
+    function createtype(type, val, type2=null) {
         let a
         a = {
             "Type": type,
             "Token": {
-                "Type": "Number",
+                "Type": type2 == null ? "Number" : type2,
                 "LeadingWhite": "",
                 "Source": "" + val,
             },
@@ -2884,20 +2905,58 @@ function SolveMath(ast) { // This is some ugly code sorry for whoever is seeing 
         }
     }
 
+    function removething(a) {
+        if (a == null || a.substr == null) return;
+
+        let start = a.substr(0,1)
+        let ret
+        if (start == `"` || start == `'`) ret = a.substr(1,a.length-2);
+        if (start == `[`) ret =  a.substr(2,a.length-4);
+        if (ret == null) return '';
+
+        let newret = ''
+        let i
+        for (i=0;i<=ret.length;i++) {
+            let c = ret.substr(i,1)
+
+            if (c == `'` || c == `"`) {
+                newret += `\\${c}`
+            } else {
+                newret += c
+            }
+        }
+        return newret
+    }
+
+
     function solvebinop(operator, lhs, rhs) {
-        let a = lhs.Token
-        let b = rhs.Token
+        if (lhs && lhs.Type == "ParenExpr") lhs = lhs.Expression;
+        if (rhs && rhs.Type == "ParenExpr") rhs = rhs.Expression;
 
-        if (a == null || b == null) return;
-        if (a.Source == null || b.Source == null) return;
+        if (lhs == null || rhs == null || lhs.Type == null || rhs.Type == null) return;
 
-        let lSrc = a.Source
-        let rSrc = b.Source
+        if (lhs.Type == "VariableExpr" || lhs.Type == "CallExpr" || lhs.Type == "BinopExpr" || rhs.Type == "CallExpr" || rhs.Type == "BinopExpr") {
+            // some shit later
+            // if lhs == true, rhs()
+            // if lhs == false, no rhs :(
+
+            return
+        }
+        //if (lhs.Type == "BinopExpr" || lhs.Type == "")
+
+        let a = (lhs.Token) || (lhs.Expression != null && lhs.Expression.Token) || null
+        let b = (rhs.Token) || (rhs.Expression != null && rhs.Expression.Token) || null
+
+        //if (a == null || b == null) return;
+        //if (a.Source == null || b.Source == null) return;
+
+        let lSrc = a != null ? a.Source : null
+        let rSrc = b != null ? b.Source : null
 
         let left
         let right
-        if (lhs.Type == "BooleanLiteral") left = lSrc == "true" ? "true" : "false";
-        if (rhs.Type == "BooleanLiteral") right = rSrc == "true" ? "true" : "false";
+        if (lhs.Type == "BooleanLiteral") left = lSrc == "true" ? true : false;
+        if (rhs.Type == "BooleanLiteral") right = rSrc == "true" ? true : false;
 
         if (lhs.Type == "NumberLiteral") {
             left = parseFloat(lSrc)
@@ -2907,12 +2966,23 @@ function SolveMath(ast) { // This is some ugly code sorry for whoever is seeing 
             right = parseFloat(rSrc)
             if (right == null) return;
         }
-        if (lhs.Type == "StringLiteral") left = toString(lSrc);
-        if (rhs.Type == "StringLiteral") right = toString(rSrc);
+        if (lhs.Type == "StringLiteral") left = lSrc.toString();
+        if (rhs.Type == "StringLiteral") right = rSrc.toString();
 
         if (operator == "==") return left == right;
         if (operator == "~=") return left != right;
+        if (operator == "and") return left && right;
+        if (operator == "or") return left || right;
+        if (operator == ".." && lhs.Type == "StringLiteral" && rhs.Type == "StringLiteral") 
+            return `"${removething(lSrc) + removething(rSrc)}"`;
+
+        //  && lhs.Type == "NumberLiteral" && rhs.Type == "NumberLiteral"
         if (left != null && right != null) {
+            if (lhs.Type == "StringLiteral") left = parseFloat(removething(left));
+            if (rhs.Type == "StringLiteral") right = parseFloat(removething(right));
+
+            if (left == null || right == null) return;
+
             if (operator == "+") return left + right;
             if (operator == "-") return left - right;
             if (operator == "*") return left * right;
@@ -2969,20 +3039,24 @@ function SolveMath(ast) { // This is some ugly code sorry for whoever is seeing 
             return newex
         }
 
-        if (rhs.Type == "BooleanLiteral") right = rSrc == "true" ? "true" : "false";
+        if (rhs.Type == "BooleanLiteral") right = rSrc == "true" ? true : false;
         if (rhs.Type == "NumberLiteral") {
             right = parseFloat(rSrc)
             if (right == null) return;
         }
         if (rhs.Type == "StringLiteral") right = rSrc.substr(1,rSrc.length - 2);
 
+        if (operator == "not") {
+            if (rhs.Type == "NilLiteral" || (rhs.Type == "BooleanLiteral" && right == false)) return true;
+            return false
+        }
         if (right != null) {
             if (operator == "#") return (right.length);
+            if (operator == "-") return -right;
         }
     }
 
     solveExpr = function(expr) {
-        
         if (expr.Type == "BinopExpr") {
 
             //if (expr.Lhs != null && canSolve[expr.Lhs.Type] != true) {
@@ -2993,8 +3067,8 @@ function SolveMath(ast) { // This is some ugly code sorry for whoever is seeing 
                 solveExpr(expr.Rhs)
             //}
 
-            if (expr.Lhs != null && canSolve[expr.Lhs.Type] == true
-                && expr.Rhs != null && canSolve[expr.Rhs.Type] == true) {
+            //  && canSolve[expr.Lhs.Type] == true |  && canSolve[expr.Rhs.Type] == true
+            if (expr.Lhs != null && expr.Rhs != null) {
                 let tokenOp = expr.Token_Op
 
                 if (tokenOp != null && tokenOp.Source != null) {
@@ -3002,16 +3076,25 @@ function SolveMath(ast) { // This is some ugly code sorry for whoever is seeing 
 
                     if (val != null) {
                         if (typeof(val) == "boolean") {
-                            let b = createtype("BooleanLiteral", val)
+                            let b = createtype("BooleanLiteral", val.toString(), "Keyword")
                             replace(expr, b)
                             return
                         } else if(typeof(val) == "number") {
                             if (isFinite(val) == true) {
-                                let num = createtype("NumberLiteral", val)
+                                let num = createtype("NumberLiteral", val, "Number")
                                 replace(expr, num)
                                 return
                             }
+                        } else if(typeof(val) == "string") {
+                            let str = createtype("StringLiteral", val, "String")
+                            replace(expr, str)
+
+                            return
+                        } else if(typeof(val) == "object") {
+                            replace(expr, val)
+                            return
                         }
+                        return
                     }
                 }
             }
@@ -3030,13 +3113,24 @@ function SolveMath(ast) { // This is some ugly code sorry for whoever is seeing 
 
                     if (val != null) {
                         if (typeof(val) == "boolean") {
-                            let b = createtype("BooleanLiteral", val)
+                            let b = createtype("BooleanLiteral", val.toString(), "Keyword")
                             replace(expr, b)
+                            return
                         } else if(typeof(val) == "number") {
-                            let num = createtype("NumberLiteral", val)
-                            replace(expr, num)
+                            if (isFinite(val) == true) {
+                                let num = createtype("NumberLiteral", val, "Number")
+                                replace(expr, num)
+                                return
+                            }
+                        } else if(typeof(val) == "string") {
+                            let str = createtype("StringLiteral", val, "String")
+
+                            replace(expr, str)
+                            
+                            return
                         } else if(typeof(val) == "object") {
                             replace(expr, val)
+                            return
                         }
                         return
                     }
