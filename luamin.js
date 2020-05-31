@@ -508,6 +508,7 @@ function CreateLuaParser(text) {
                 print(`Tokens[${i}] = \`${peek(i).Source}\``)
             }
             if (source) {
+
                 let a = `${getTokenStartPosition(tk)}: \`${source}\` expected.`
                 throw a
             } else {
@@ -2935,7 +2936,7 @@ function SolveMath(ast) { // This is some ugly code sorry for whoever is seeing 
 
         if (lhs == null || rhs == null || lhs.Type == null || rhs.Type == null) return;
 
-        if (lhs.Type == "VariableExpr" || lhs.Type == "CallExpr" || lhs.Type == "BinopExpr" || rhs.Type == "CallExpr" || rhs.Type == "BinopExpr") {
+        if (lhs.Type == "VariableExpr" || lhs.Type == "CallExpr" || lhs.Type == "BinopExpr" || rhs.Type == "CallExpr" || rhs.Type == "BinopExpr" || rhs.Type == "VariableExpr") {
             // some shit later
             // if lhs == true, rhs()
             // if lhs == false, no rhs :(
@@ -2966,18 +2967,20 @@ function SolveMath(ast) { // This is some ugly code sorry for whoever is seeing 
             right = parseFloat(rSrc)
             if (right == null) return;
         }
+
         if (lhs.Type == "StringLiteral") left = lSrc.toString();
         if (rhs.Type == "StringLiteral") right = rSrc.toString();
 
-        if (operator == "==") return left == right;
-        if (operator == "~=") return left != right;
-        if (operator == "and") return left && right;
-        if (operator == "or") return left || right;
-        if (operator == ".." && lhs.Type == "StringLiteral" && rhs.Type == "StringLiteral") 
-            return `"${removething(lSrc) + removething(rSrc)}"`;
 
         //  && lhs.Type == "NumberLiteral" && rhs.Type == "NumberLiteral"
         if (left != null && right != null) {
+            if (operator == "==") return left == right;
+            if (operator == "~=") return left != right;
+            if (operator == "and") return left && right;
+            if (operator == "or") return left || right;
+            if (operator == ".." && lhs.Type == "StringLiteral" && rhs.Type == "StringLiteral") 
+                return `"${removething(lSrc) + removething(rSrc)}"`;
+
             if (lhs.Type == "StringLiteral") left = parseFloat(removething(left));
             if (rhs.Type == "StringLiteral") right = parseFloat(removething(right));
 
@@ -3002,6 +3005,10 @@ function SolveMath(ast) { // This is some ugly code sorry for whoever is seeing 
 
         if (b == null) return;
         if (b.Source == null && rhs.Type != "TableLiteral") return;
+
+        if (rhs.Type == "VariableExpr" || rhs.Type == "CallExpr" || rhs.Type == "BinopExpr") {
+            return
+        }
 
         let rSrc = b.Source
         let right
@@ -3046,8 +3053,9 @@ function SolveMath(ast) { // This is some ugly code sorry for whoever is seeing 
         }
         if (rhs.Type == "StringLiteral") right = rSrc.substr(1,rSrc.length - 2);
 
-        if (operator == "not") {
+        if (operator == "not" && rhs.Type != null) {
             if (rhs.Type == "NilLiteral" || (rhs.Type == "BooleanLiteral" && right == false)) return true;
+
             return false
         }
         if (right != null) {
