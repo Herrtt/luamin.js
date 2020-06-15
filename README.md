@@ -26,13 +26,14 @@ Download **luamin.js** and paste it in desired folder.
 // Everything should explain itself.
 const src = `print("Hello World!")`
 
-// Two options, should it change the variable names &or global names (not safe)? 'L_1_', 'L_2_', etc.
-const renameVariables = true
-const renameGlobals = false // May error if set to true
-
+let options = {
+  RenameVariables: true, // Should it change the variable names? (L_1_, L_2_, ...)
+  RenameGlobals: false, // Not safe, rename global variables? (G_1_, G_2_, ...) (only works if RenameVariables is set to true)
+  SolveMath: true, // Solve math? (local a = 1 + 1 => local a = 2, etc.)
+}
 
 const luamin = require("./luamin") // Require the module
 
-const beautified_src = luamin.Beautify(src, renameVariables, renameGlobals)
-const minified_src = luamin.Minify(src, renameVariables, renameGlobals)
+const beautified_src = luamin.Beautify(src, options)
+const minified_src = luamin.Minify(src, options)
 ```
