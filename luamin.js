@@ -2246,14 +2246,25 @@ function FormatAst(ast) {
 
             } else {
                 indent()
+
+                let die = 15
                 expr.EntryList.forEach((entry, index) => {
                     if (entry.EntryType == "Field") {
-                        applyIndent(entry.Field)
+                        if (expr.EntryList.length > die) {
+                            StripAst(entry.Value)
+                        } else {
+                            applyIndent(entry.Field)
+                        }
+
                         padToken(entry.Token_Equals)
                         formatExpr(entry.Value)
                         padExpr(entry.Value)
                     } else if(entry.EntryType == "Index") {
-                        applyIndent(entry.Token_OpenBracket)
+                        if (expr.EntryList.length > die)
+                            entry.Token_OpenBracket.LeadingWhite = ''
+                        else
+                            applyIndent(entry.Token_OpenBracket);
+
                         formatExpr(entry.Index)
 
                         padToken(entry.Token_Equals)
@@ -2261,17 +2272,27 @@ function FormatAst(ast) {
                         padExpr(entry.Value)
                     } else if(entry.EntryType == "Value") {
                         formatExpr(entry.Value)
-                        applyIndent(entry.Value.GetFirstToken())
+
+                        if (expr.EntryList.length > die) {
+                            StripAst(entry.Value)
+                        } else {
+                            applyIndent(entry.Value.GetFirstToken())
+                        }
                     } else {
                         assert(false, "unreachable")
                     }
                     let sep = expr.Token_SeperatorList[index]
-                     if (sep != null) {
-
+                    if (sep != null) {
+                        if (expr.EntryList.length > die)
+                            sep.LeadingWhite = '';
                     }
                 })
                 undent()
-                applyIndent(expr.Token_CloseBrace)
+                if (expr.EntryList.length > die) {
+                    expr.Token_CloseBrace.LeadingWhite = ''
+                } else {
+                    applyIndent(expr.Token_CloseBrace)
+                }
             }
         } else {
             print(expr)
@@ -2835,8 +2856,9 @@ function StripAst(ast) {
                 }
             })
         } else {
-            print(`unreachable, type: ${stat.Type}`,stat)
-            throw(`unreachable, type: ${stat.Type}:${stat}`)
+            return stripExpr(stat)
+            //print(`unreachable, type: ${stat.Type}`,stat)
+            //throw(`unreachable, type: ${stat.Type}:${stat}`)
         }
     }
 
