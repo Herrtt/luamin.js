@@ -3008,17 +3008,21 @@ function SolveMath(ast) { // This is some ugly code sorry for whoever is seeing 
 
             if (left == null || right == null) return;
 
-            if (operator == "+") return left + right;
-            if (operator == "-") return left - right;
-            if (operator == "*") return left * right;
-            if (operator == "/") return left / right;
-            if (operator == "^") return left ** right;
-            if (operator == "%") return left % right;
+            let val
+            if (operator == "+") val = left + right;
+            if (operator == "-") val = left - right;
+            if (operator == "*") val = left * right;
+            if (operator == "/") val = left / right;
+            if (operator == "^") val = left ** right;
+            if (operator == "%") val = left % right;
 
-            if (operator == ">") return left > right;
-            if (operator == "<") return left < right;
-            if (operator == ">=") return left >= right;
-            if (operator == "<=") return left <= right;
+            if (operator == ">") val = left > right;
+            if (operator == "<") val = left < right;
+            if (operator == ">=") val = left >= right;
+            if (operator == "<=") val = left <= right;
+
+            if (val == false || val == true || (isFinite(val) && val > -(10 ** 6) && val < 10 ** 6 ))
+                return val;
         }
     }
 
@@ -3173,6 +3177,28 @@ function SolveMath(ast) { // This is some ugly code sorry for whoever is seeing 
                 || expr.Type == "VargLiteral")
         {
             // ...
+            let token = expr.Token
+            if (token != null) {
+                if (token.Type == "Number") {
+                    let int = parseInt(token.Source)
+
+                    if (int != null && isFinite(int))
+                        token.Source = int + "";
+                }
+
+                if (token.Type == "String") {
+                    token.Source = token.Source.replace(/\\\d+/gi, (got) => {
+                        let num = parseInt(got.substr(1,got.length-1))
+                        if (num && isFinite(num) && ((num >= 97 && num <= 122) || (num >= 65 && num <= 90))) {
+                          return String.fromCharCode(num)
+                        }
+                        
+                        return got
+                    })
+                }
+            }
+
+
         } else if(expr.Type == "FieldExpr") {
             solveExpr(expr.Base)
         } else if(expr.Type == "IndexExpr") {
@@ -3192,6 +3218,10 @@ function SolveMath(ast) { // This is some ugly code sorry for whoever is seeing 
         } else if(expr.Type == "VariableExpr") {
             // Dont care
         } else if(expr.Type == "ParenExpr") {
+            let exprExpr = expr.Expression
+            if (exprExpr != null && exprExpr.Type == "ParenExpr") {
+                expr.Expression = exprExpr.Expression
+            }
             solveExpr(expr.Expression)
         } else if(expr.Type == "TableLiteral") {
             expr.EntryList.forEach((entry, index) => {
