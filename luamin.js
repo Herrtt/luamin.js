@@ -3062,28 +3062,32 @@ function SolveMath(ast) { // This is some ugly code sorry for whoever is seeing 
             // this became a mess really quick
             rhs.EntryList = extra
 
-            if (rhs.EntryList.length <= 0) {
-                return createtype("NumberLiteral", amount || 0)
-            } else if(amount <= 0) {
-                return rhs
+            if (operator == "#") {
+                if (rhs.EntryList.length <= 0) {
+                    return createtype("NumberLiteral", amount || 0)
+                } else if(amount <= 0) {
+                    return rhs
+                }
+    
+                let newex = createbinop("+", createtype("NumberLiteral", amount), rhs);
+                return newex
             }
-
-            let newex = createbinop("+", createtype("NumberLiteral", amount), rhs);
-            return newex
         }
 
         if (rhs.Type == "BooleanLiteral") right = rSrc == "true" ? true : false;
         if (rhs.Type == "NumberLiteral") {
             right = parseFloat(rSrc)
-            if (right == null) return;
+            if (right === null) return;
         }
         if (rhs.Type == "StringLiteral") right = rSrc.substr(1,rSrc.length - 2);
 
-        if (operator == "not" && rhs.Type != null) {
-            if (rhs.Type == "NilLiteral" || (rhs.Type == "BooleanLiteral" && right == false)) return true;
+        if (operator == "not" && rhs.Type !== null) {
+
+            if (rhs.Type == "NilLiteral" || (rhs.Type == "BooleanLiteral" && right === false)) return true;
 
             return false
         }
+
         if (right != null) {
             if (operator == "#") return (right.length);
             if (operator == "-") return -right;
