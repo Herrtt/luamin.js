@@ -1,9 +1,5 @@
 --[[
-	code beautified using luamin.js, Herrtt#3868
+	code generated using luamin.js, Herrtt#3868
 --]]
 
---[[
-    Put your script in here!
-]]
-
-print("Hello World!")
+local b=math.floor(.2) print("Hello World!" .. b)

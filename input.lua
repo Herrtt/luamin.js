@@ -1,5 +1,5 @@
 --[[
     Put your script in here!
 ]]
-
-print("Hello World!")
+local abc = math.floor( .2 )
+print("Hello World!" .. abc)

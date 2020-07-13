@@ -21,18 +21,35 @@ const assert = function(a,b) {
     }
 }
 
-let WhiteChars = {
-    ' ':true, '\n':true, '\t':true, '\r':true,
-}
 
-let EscapeForCharacter = {
+
+/** 
+ * 
+ * regex to make arr : (arr)\[(\S*)\]
+ * replace value : $1.includes($2)
+ * 
+*/
+
+
+
+
+let WhiteChars = [
+    ' ', 
+    '\n', 
+    '\t', 
+    '\r'
+]
+
+//unused
+
+/* let EscapeForCharacter = {
     '\r': '\\r', 
     '\n': '\\n',
     '\t': '\\t',
     '"': '\\"',
     "'": "\\'",
     '\\': '\\'
-}
+} */
 
 let Main_CharacterForEscape = {
     'r': '\r', 
@@ -47,91 +64,103 @@ const CharacterForEscape = new Proxy(Main_CharacterForEscape, {
     get(a, b) { return parseInt(b) }
 })
 
-let AllIdentStartChars = {
-    'A':true,'B':true,'C':true,'D':true,
-    'E':true,'F':true,'G':true,'H':true,
-    'I':true,'J':true,'K':true,'L':true,
-    'M':true,'N':true,'O':true,'P':true,
-    'Q':true,'R':true,'S':true,'T':true,
-    'U':true,'V':true,'W':true,'X':true,
-    'Y':true,'Z':true,'_':true,'a':true,
-    'b':true,'c':true,'d':true,'e':true,
-    'f':true,'g':true,'h':true,'i':true,
-    'j':true,'k':true,'l':true,'m':true,
-    'n':true,'o':true,'p':true,'q':true,
-    'r':true,'s':true,'t':true,'u':true,
-    'v':true,'w':true,'x':true,'y':true,
-    'z':true,
-}
+let AllIdentStartChars = [
+    'A',    'B',    'C',    'D',
+    'E',    'F',    'G',    'H',
+    'I',    'J',    'K',    'L',
+    'M',    'N',    'O',    'P',
+    'Q',    'R',    'S',    'T',
+    'U',    'V',    'W',    'X',
+    'Y',    'Z',    '_',    'a',
+    'b',    'c',    'd',    'e',
+    'f',    'g',    'h',    'i',
+    'j',    'k',    'l',    'm',
+    'n',    'o',    'p',    'q',
+    'r',    's',    't',    'u',
+    'v',    'w',    'x',    'y',
+    'z'
+]
 
-let AllIdentChars = {
-    '0':true,'1':true,'2':true,'3':true,
-    '4':true,'5':true,'6':true,'7':true,
-    '8':true,'9':true,'A':true,'B':true,
-    'C':true,'D':true,'E':true,'F':true,
-    'G':true,'H':true,'I':true,'J':true,
-    'K':true,'L':true,'M':true,'N':true,
-    'O':true,'P':true,'Q':true,'R':true,
-    'S':true,'T':true,'U':true,'V':true,
-    'W':true,'X':true,'Y':true,'Z':true,
-    '_':true,'a':true,'b':true,'c':true,
-    'd':true,'e':true,'f':true,'g':true,
-    'h':true,'i':true,'j':true, 'k':true,
-    'l':true,'m':true,'n':true,'o':true,
-    'p':true,'q':true,'r':true,'s':true,
-    't':true,'u':true,'v':true,'w':true,
-    'x':true,'y':true,'z':true, // this was actually fucking retarded to add, pls dont do this to me
-}
+let AllIdentChars = [
+    '0',    '1',    '2',    '3',
+    '4',    '5',    '6',    '7',
+    '8',    '9',    
+    
+    
+    'A',    'B',
+    'C',    'D',    'E',    'F',
+    'G',    'H',    'I',    'J',
+    'K',    'L',    'M',    'N',
+    'O',    'P',    'Q',    'R',
+    'S',    'T',    'U',    'V',
+    'W',    'X',    'Y',    'Z',
+    '_',    'a',    'b',    'c',
+    'd',    'e',    'f',    'g',
+    't',    'u',    'v',    'w',
+    'h',    'i',    'j',    'k',
+    'l',    'm',    'n',    'o',
+    'p',    'q',    'r',    's',
+    'x',    'y',    'z',     // this was actually fucking retarded to add, pls dont do this to me
+]
 
-let Digits = {
-    '0':true,'1':true,'2':true,'3':true,
-    '4':true,'5':true,'6':true,'7':true,
-    '8':true,'9':true,
-}
+let Digits = [
+    '0','1','2','3',
+    '4','5','6','7',
+    '8','9',
+]
 
-let HexDigits = {
-    '0':true,'1':true,'2':true,'3':true,
-    '4':true,'5':true,'6':true,'7':true,
-    '8':true,'9':true,
+let HexDigits = [
+    //digets
+    '0','1','2','3',
+    '4','5','6','7',
+    '8','9',
 
-    'a':true,'b':true,'c':true,'d':true,'e':true,'f':true,
-    'A':true,'B':true,'C':true,'D':true,'E':true,'F':true,
-}
+    //letters
+    'a','b','c','d','e','f',
+    'A','B','C','D','E','F',
+]
 
-let Symbols = {
-    '+': true, '-': true, '*': true, '/': true, '^': true, '%': true, ',': true, '{': true, '}': true, '[': true, ']': true, '(': true, ')': true, ';': true, '#': true, '.': true, ':': true,
-}
+let Symbols = [
+    '+', '-', '*', ')', ';',  
+    '/', '^', '%', '#',
+    ',', '{', '}', ':',
+    '[', ']', '(','.',
+]
 
-let EqualSymbols = {
-    '~':true, '=':true, '>':true, '<':true,
-}
+let EqualSymbols = [
+    '~', '=', '>', '<',
+]
 
-let Keywords = {
-    'and':true,'break':true,'do':true,'else':true, 
-    'elseif':true,'end':true,'false':true,'for':true,
-    'function':true,'goto':true,'if':true,'in':true,
-    'local':true,'nil':true,'not':true,'or':true, 
-    'repeat':true,'return':true,'then':true,'true':true, 
-    'until':true, 'while':true,
-}
+let Keywords = [
+    'and',      'break',    'do',   'else', 
+    'elseif',   'end',      'false','for',
+    'function', 'goto',     'if',   'in',
+    'local',    'nil',      'not',  'or', 
+    'repeat',   'return',   'then', 'true', 
+    'until',    'while',
+]
 
-let BlockFollowKeyword = {
-    'else':true, 'elseif':true, 'until':true, 'end':true
-}
+let BlockFollowKeyword = [
+    'else',     'elseif', 
+    'until',    'end'
+]
 
-let UnopSet = {
-    '-':true, 'not':true, '#':true,
-}
+let UnopSet = [
+    '-',    'not',  '#',
+]
 
-let BinopSet = {
-	'+':true, '-':true, '*':true, '/':true, '%':true, '^':true, '#':true,
-	'..':true, '.':true, ':':true,
-	'>':true, '<':true, '<=':true, '>=':true, '~=':true, '==':true,
-	'and':true, 'or':true
-}
+let BinopSet = [
+    '+',    '-',     '*',   '/',    '%',    '^',    '#',    //algorithmic
+    
+    '..',   '.',     ':',   //dots / colons
+    
+    '>',    '<',     '<=',  '>=',   '~=',   '==',   //arrows / conditional
+    
+	'and',  'or'    // conditional 
+]
 
-let GlobalRenameIgnore = {
-}
+/* let GlobalRenameIgnore = {
+} //unused */
 let BinaryPriority = {
     '+': [6, 6],
     '-': [6, 6],
@@ -311,7 +340,7 @@ function CreateLuaTokenStream(text) {
                 } else {
                     break
                 }
-            } else if(WhiteChars[c]) {
+            } else if(WhiteChars.includes(c)) {
                 p++
                 //whiteStart = p // Idk I dont like white spaces
             } else {
@@ -347,9 +376,9 @@ function CreateLuaTokenStream(text) {
                 }
             }
             token('String')
-        } else if(AllIdentStartChars[c1]) {
+        } else if(AllIdentStartChars.includes(c1)) {
             // Ident or keyword
-            while (AllIdentChars[look()]) {
+            while (AllIdentChars.includes(look())) {
                 p++
             }
 
@@ -359,24 +388,24 @@ function CreateLuaTokenStream(text) {
                 token("Ident")
             }
             
-        } else if(Digits[c1] || (c1 == '.' && Digits[look()])) {
+        } else if(Digits.includes(c1) || (c1 == '.' && Digits.includes(look()))) {
             // Number
             if (c1 == '0' && look() == 'x') {
                 p++
                 // Hex number
-                while (HexDigits[look()]) {
+                while (HexDigits.includes(look())) {
                     p++
                 }
             } else {
                 // Normal number
-                while (Digits[look()]) {
+                while (Digits.includes(look())) {
                     p++
                 }
 
                 if (look() == '.') {
                     // With decimal point
                     p++
-                    while (Digits[look()]) {
+                    while (Digits.includes(look())) {
                         p++
                     }
                 }
@@ -387,7 +416,7 @@ function CreateLuaTokenStream(text) {
                     if (look() == '-') {
                         p++
                     }
-                    while (Digits[look()]) {
+                    while (Digits.includes(look())) {
                         p++
                     }
                 }
@@ -413,12 +442,12 @@ function CreateLuaTokenStream(text) {
                 }
             }
             token("Symbol")
-        } else if(EqualSymbols[c1]) {
+        } else if(EqualSymbols.includes(c1)) {
             if (look() == "=") {
                 p++
             }
             token("Symbol")
-        } else if(Symbols[c1]) {
+        } else if(Symbols.includes(c1)) {
             token("Symbol")
         } else {
             throw(`Bad symbol \`${c1}\` in source.`)
@@ -487,15 +516,15 @@ function CreateLuaParser(text) {
 
     function isBlockFollow() {
         let tok = peek()
-        return tok.Type == 'Eof' || (tok.Type == 'Keyword' && BlockFollowKeyword[tok.Source])   
+        return tok.Type == 'Eof' || (tok.Type == 'Keyword' && BlockFollowKeyword.includes(tok.Source))   
     }
 
     function isUnop() {
-        return UnopSet[peek().Source] || false
+        return UnopSet.includes(peek().Source) || false
     }
 
     function isBinop() {
-        return BinopSet[peek().Source] || false
+        return BinopSet.includes(peek().Source) || false
     }
 
     function expect(type, source) {
@@ -2162,7 +2191,7 @@ function FormatAst(ast) {
     }
 
     function padToken(tk) {
-        if (!WhiteChars[leadingChar(tk)]) {
+        if (!WhiteChars.includes(leadingChar(tk))) {
             tk.LeadingWhite = ' ' + tk.LeadingWhite
         }
     }
@@ -2513,7 +2542,7 @@ function StripAst(ast) {
         let lastCh = tokenA.Source.substr(-0,1)
         let firstCh = tokenB.Source.substr(0,1)
 
-        if ((lastCh == "-" && firstCh == "-") || (AllIdentChars[lastCh] != null && AllIdentChars[firstCh] != null)) {
+        if ((lastCh == "-" && firstCh == "-") || (AllIdentChars.includes(lastCh) != null && AllIdentChars.includes(firstCh) != null)) {
             tokenB.LeadingWhite = ' '
         } else {
             tokenB.LeadingWhite = ""
@@ -3336,7 +3365,7 @@ function indexToVarName(index) {
     while (index > 0) {
         let d = index % VarDigits.length
         index = (index - d) / VarDigits.length
-        id = `${id}${VarDigits[d+1]}`
+        id = `${id}${VarDigits.includes(d+1)}`
     }
     return id
 }
@@ -3349,7 +3378,7 @@ function genNextVarName() {
 
 function genVarName() {
     let varName = genNextVarName()
-    while (Keywords[varName]) {
+    while (Keywords.includes(varName)) {
         varName = genNextVarName()
     }
     return varName
@@ -3384,7 +3413,7 @@ function MinifyVariables(globalScope, rootScope) {
             let varName = ""
             varName = indexToVarName(nextFreeNameIndex)
             nextFreeNameIndex++
-            while (Keywords[varName] || externalGlobals[varName]) {
+            while (Keywords.includes(varName) || externalGlobals[varName]) {
                 varName = indexToVarName(nextFreeNameIndex)
                 nextFreeNameIndex++ 
             }
@@ -3398,7 +3427,7 @@ function MinifyVariables(globalScope, rootScope) {
             let varName = ''
             varName = indexToVarName(scope.FirstFreeName)
             scope.FirstFreeName++
-            while (Keywords[varName] || externalGlobals[varName]) {
+            while (Keywords.includes(varName) || externalGlobals[varName]) {
                 varName = indexToVarName(scope.FirstFreeName)
                 scope.FirstFreeName++
             }
