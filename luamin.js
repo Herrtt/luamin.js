@@ -387,7 +387,7 @@ function CreateLuaTokenStream(text) {
                 p++
             }
 
-            if (Keywords[text.substr(tokenStart, (p - tokenStart))]) {
+            if (Keywords.includes(text.substr(tokenStart, (p - tokenStart)))) {
                 token("Keyword")
             } else {
                 token("Ident")
@@ -542,7 +542,6 @@ function CreateLuaParser(text) {
                 print(`Tokens[${i}] = \`${peek(i).Source}\``)
             }
             if (source) {
-
                 let a = `${getTokenStartPosition(tk)}: \`${source}\` expected.`
                 throw a
             } else {
@@ -701,8 +700,8 @@ function CreateLuaParser(text) {
         return [varList, commaList]
     }
 
-    function blockbody(terminator) {
-        let body = block()
+    function blockbody(terminator, locals) {
+        let body = block(locals)
         let after = peek()
         if (after.Type == "Keyword" && after.Source == terminator) {
             get()
@@ -713,7 +712,7 @@ function CreateLuaParser(text) {
         }
     }
 
-    function funcdecl(isAnonymous) {
+    function funcdecl(isAnonymous, locals) {
         let functionKw = get()
 
         let nameChain
@@ -740,7 +739,7 @@ function CreateLuaParser(text) {
 
         let [argList, argCommaList, vargToken] = varlist(true)
         let cparenTk = expect("Symbol", ")")
-        let [fbody, enTk] = blockbody("end")
+        let [fbody, enTk] = blockbody("end", locals)
 
         let node
         node = MkNode({
@@ -1023,11 +1022,11 @@ function CreateLuaParser(text) {
         }
     }
 
-    function ifstat() {
+    function ifstat(locals) {
         let ifKw = get()
         let condition = expr()
         let thenKw = expect("Keyword", "then")
-        let ifBody = block()
+        let ifBody = block(locals)
         let elseClauses = []
         while (peek().Source == "elseif" || peek().Source == "else") {
             let elseifKw = get()
@@ -1037,7 +1036,7 @@ function CreateLuaParser(text) {
                 elseifCondition = expr()
                 elseifThenKw = expect("Keyword", "then")
             }
-            let elseifBody = block()
+            let elseifBody = block(locals)
             elseClauses.push({
                 "Condition": elseifCondition,
                 "Body": elseifBody,
@@ -1068,9 +1067,9 @@ function CreateLuaParser(text) {
     }
 
 
-    function dostat() {
+    function dostat(locals) {
         let doKw = get()
-        let [body, enKw] = blockbody("end")
+        let [body, enKw] = blockbody("end", locals)
         
         let node
         node = MkNode({
@@ -1085,11 +1084,11 @@ function CreateLuaParser(text) {
         return node
     }
 
-    function whilestat() {
+    function whilestat(locals) {
         let whileKw = get()
         let condition = expr()
         let doKw = expect("Keyword", "do")
-        let [body, enKw] = blockbody("end")
+        let [body, enKw] = blockbody("end", locals)
 
         let node
         node = MkNode({
@@ -1106,7 +1105,7 @@ function CreateLuaParser(text) {
         return node
     }
 
-    function forstat() {
+    function forstat(locals) {
         let forKw = get()
         let [loopVars, loopVarCommas] = varlist()
         let node = []
@@ -1117,7 +1116,7 @@ function CreateLuaParser(text) {
                 throw "Expected 2 or 3 values for range bounds"
             }
             let doTk = expect("Keyword", "do")
-            let [body, enTk] = blockbody("end")
+            let [body, enTk] = blockbody("end", locals)
             let node
             node = MkNode({
                 "Type": "NumericForStat",
@@ -1139,7 +1138,7 @@ function CreateLuaParser(text) {
             let inTk = get()
             let [exprList, exprCommaList] = exprlist()
             let doTk = expect("Keyword", "do")
-            let [body, enTk] = blockbody("end")
+            let [body, enTk] = blockbody("end", locals)
             let node
             node = MkNode({
                 "Type": "GenericForStat",
@@ -1160,9 +1159,9 @@ function CreateLuaParser(text) {
         }
     }
 
-    function repeatstat() {
+    function repeatstat(locals) {
         let repeatKw = get()
-        let [body, untilTk] = blockbody("until")
+        let [body, untilTk] = blockbody("until", locals)
         let condition = expr()
 
         let node
@@ -1179,7 +1178,7 @@ function CreateLuaParser(text) {
         return node
     }
 
-    function localdecl() {
+    function localdecl(locals) {
         let localKw = get()
         if (peek().Source == "function") {
             let funcStat = funcdecl(false)
@@ -1273,35 +1272,38 @@ function CreateLuaParser(text) {
         return self
     }
 
-    function statement() {
+    function statement(locals, upvalues) {
         let tok = peek()
         if (tok.Source == "if") {
-            return [false, ifstat()]
+            return [false, ifstat(locals, upvalues)]
         } else if(tok.Source == "while") {
-            return [false, whilestat()]
+            return [false, whilestat(locals, upvalues)]
         } else if(tok.Source == "do") {
-            return [false, dostat()]
+            return [false, dostat(locals, upvalues)]
         } else if(tok.Source == "for") {
-            return [false, forstat()]
+            return [false, forstat(locals, upvalues)]
         } else if(tok.Source == "repeat") {
-            return [false, repeatstat()]
+            return [false, repeatstat(locals, upvalues)]
         } else if(tok.Source == "function") {
-            return [false, funcdecl(false)]
+            return [false, funcdecl(false, locals, upvalues)]
         } else if(tok.Source == "local") {
-            return [false, localdecl()]
+            return [false, localdecl(locals, upvalues)]
         } else if(tok.Source == "return") {
-            return [true, retstat()]
+            return [true, retstat(locals, upvalues)]
         } else if(tok.Source == "break") {
-            return [true, breakstat()]
+            return [true, breakstat(locals, upvalues)]
         } else {
-            return [false, exprstat()]
+            return [false, exprstat(locals, upvalues)]
         }
     }
 
-    block = function() {
+    block = function(a) {
         let statements = []
         let semicolons = []
         let isLast = false
+
+        let locals = []
+        let upvalues = a || []
 
         let thing
         while (!isLast && !isBlockFollow()) {
@@ -1310,8 +1312,19 @@ function CreateLuaParser(text) {
             }
             thing = peek()
 
-            let [isLast, stat] = statement()
-            if (stat) statements.push(stat);
+            let [isLast, stat] = statement(locals, upvalues)
+            if (stat) {
+                statements.push(stat);
+                if (stat.Type == "LocalVarStat" || stat.Type == "LocalFunctionStat") {
+                    if (stat.Type == "LocalVarStat") {
+                        stat.VarList.forEach(token => {
+                            token.UseCount = 0
+                            locals[token.Source] = token
+                        })
+                    }
+
+                }
+            }
 
             let next = peek()
             if (next.Type == "Symbol" && next.Source == ";") {
@@ -1466,6 +1479,14 @@ function VisitAst(ast, visitors) {
         if (stat.Type == "StatList") {
             stat.StatementList.forEach((ch, index) => {
                 if (ch != null) {
+                    if (ch === null || ch.Type === null) {
+                        return
+                    }
+    
+                    ch.Remove = () => {
+                        stat.StatementList[index] = null
+                    }
+
                     visitStat(ch)
                 }
             })
@@ -1981,6 +2002,14 @@ function PrintAst(ast) {
 
         if (stat.Type == "StatList") {
             stat.StatementList.forEach((ch, index) => {
+                if (ch === null || ch.Type === null) {
+                    return
+                }
+
+                ch.Remove = () => {
+                    stat.StatementList[index] = null
+                }
+
                 printStat(ch)
                 if (stat.SemicolonList[index]) {
                     printt(stat.SemicolonList[index])
@@ -2340,6 +2369,14 @@ function FormatAst(ast) {
     formatStat = function(stat) {
         if (stat.Type == "StatList") {
             stat.StatementList.forEach((stat, index) => {
+                if (stat === null || stat.Type === null) {
+                    return
+                }
+
+                stat.Remove = () => {
+                    stat.StatementList[index] = null
+                }
+
                 formatStat(stat)
                 applyIndent(stat.GetFirstToken())
             })
@@ -2551,7 +2588,7 @@ function StripAst(ast) {
         let lastCh = tokenA.Source.substr(-0,1)
         let firstCh = tokenB.Source.substr(0,1)
 
-        if ((lastCh == "-" && firstCh == "-") || (AllIdentChars.includes(lastCh) != null && AllIdentChars.includes(firstCh) != null)) {
+        if ((lastCh == "-" && firstCh == "-") || (AllIdentChars.includes(lastCh) && AllIdentChars.includes(firstCh))) {
             tokenB.LeadingWhite = ' '
         } else {
             tokenB.LeadingWhite = ""
@@ -2961,6 +2998,7 @@ function SolveMath(ast) { // This is some ugly code sorry for whoever is seeing 
             a[i] = null
         }
 
+        if (b == null) return;
         for (var [i,v] of Object.entries(b)) {
             a[i] = v
         }
@@ -3285,8 +3323,16 @@ function SolveMath(ast) { // This is some ugly code sorry for whoever is seeing 
     
     solveStat = function(stat) {
         if (stat.Type == "StatList") {
-            stat.StatementList.forEach((ch) => {
-                if (ch != null) solveStat(ch);
+            stat.StatementList.forEach((ch, index) => {
+                if (ch === null || ch.Type === null) {
+                    return
+                }
+
+                ch.Remove = () => {
+                    stat.StatementList[index] = null
+                }
+
+                solveStat(ch);
             })
         } else if(stat.Type == "BreakStat") {
             // no
@@ -3307,6 +3353,10 @@ function SolveMath(ast) { // This is some ugly code sorry for whoever is seeing 
         } else if(stat.Type == "RepeatStat") {
             solveStat(stat.Body)
             solveExpr(stat.Condition)
+
+            if (stat.Body.Type == "StatList" && stat.Body.StatementList.length === 0) {
+                return stat.Remove()
+            }
         } else if(stat.Type == "GenericForStat") {
             stat.GeneratorList.forEach((expr, index) => {
                 solveExpr(expr)
@@ -3317,11 +3367,56 @@ function SolveMath(ast) { // This is some ugly code sorry for whoever is seeing 
                 solveExpr(expr)
             })
             solveStat(stat.Body)
+
+            if (stat.Body.Type == "StatList" && stat.Body.StatementList.length === 0) {
+                return stat.Remove()
+            }
+            
+            let a = stat.RangeList[0]
+            let b = stat.RangeList[1]
+            let c = stat.RangeList[2]
+            if (a == null || b == null) {
+                return stat.Remove()
+            }
+
+            if (a.Type != "NumberLiteral" || b.Type != "NumberLiteral" || (c != null && c.Type != "NumberLiteral") ) {
+                return // Nope.
+            }
+
+            let start = parseFloat(a.Token.Source)
+            let end = parseFloat(b.Token.Source)
+            let step = (c != null && parseFloat(c.Token.Source)) || 1
+
+            let t1 = ((step > 0 && start <= end) || (step < 0 && start >= end))
+            let t2 = ((end - start) + step) / step
+
+            let willRun = t1 && t2 >= 0
+
+            if (!willRun) {
+                stat.Remove()
+            }
         } else if(stat.Type == "WhileStat") {
             solveExpr(stat.Condition)
             solveStat(stat.Body)
+
+            switch (stat.Condition.Type) {
+                case "BooleanLiteral": {
+                    if (stat.Condition.Token.Source !== "false") {
+                        break
+                    }
+                }
+                case "NilLiteral":
+                    stat.Remove()
+                    break
+
+                default: break
+            }
         } else if(stat.Type == "DoStat") {
             solveStat(stat.Body)
+
+            if (stat.Body === null || (stat.Body.Type == "StatList" && stat.Body.StatementList.length == 0)) {
+                return stat.Remove()
+            }
         } else if(stat.Type == "IfStat") {
             solveExpr(stat.Condition)
             solveStat(stat.Body)
@@ -3405,7 +3500,7 @@ function Uglify(ast) {
         let lastCh = tokenA.Source.substr(-0,1)
         let firstCh = tokenB.Source.substr(0,1)
 
-        if ((lastCh == "-" && firstCh == "-") || (AllIdentChars[lastCh] != null && AllIdentChars[firstCh] != null)) {
+        if ((lastCh == "-" && firstCh == "-") || (AllIdentChars.includes(lastCh) && AllIdentChars.includes(firstCh))) {
             tokenB.LeadingWhite = ' '
         } else {
             tokenB.LeadingWhite = ""
@@ -4281,7 +4376,7 @@ function genNextVarName() {
 
 function genVarName() {
     let varName = genNextVarName()
-    while (Keywords[varName]) {
+    while (Keywords.includes(varName)) {
         varName = genNextVarName()
     }
     return varName
@@ -4316,7 +4411,7 @@ function MinifyVariables(globalScope, rootScope) {
             let varName = ""
             varName = indexToVarName(nextFreeNameIndex)
             nextFreeNameIndex++
-            while (Keywords[varName] || externalGlobals[varName]) {
+            while (Keywords.includes(varName) || externalGlobals[varName]) {
                 varName = indexToVarName(nextFreeNameIndex)
                 nextFreeNameIndex++ 
             }
@@ -4330,7 +4425,7 @@ function MinifyVariables(globalScope, rootScope) {
             let varName = ''
             varName = indexToVarName(scope.FirstFreeName)
             scope.FirstFreeName++
-            while (Keywords[varName] || externalGlobals[varName]) {
+            while (Keywords.includes(varName) || externalGlobals[varName]) {
                 varName = indexToVarName(scope.FirstFreeName)
                 scope.FirstFreeName++
             }
@@ -4739,13 +4834,14 @@ luaminp.Beautify = function(scr, options) {
 }
 
 luaminp.Uglify = function(src1, options) {
+    console.log("Sorry, but this is incredibly slow for large scripts.")
+
     let ast1 = CreateLuaParser(src1)
     let [glb1] = AddVariableInfo(ast1)
 
     let lol = []
     let alreadyAdded = []
 
-    console.log("Adding globals as locals (???)...")
     glb1.forEach((v) => {
         if (alreadyAdded[v.Name]) {
             /*v.RenameList.forEach((a, b) => {
@@ -4780,20 +4876,13 @@ luaminp.Uglify = function(src1, options) {
     ast1 = null
 
     let ast2 = CreateLuaParser(src2)
-
-    console.log("Uglifying...")
     Uglify(ast2)
     
-    console.log("Stripping ast...")
     StripAst(ast2)
 
-    console.log("Creating variable info...")
     let [glb2, root2] = AddVariableInfo(ast2)
+    UglifyVariables(glb2, root2, options.RenameGlobals) // This is so fucking slow omg
 
-    console.log("Uglifying variables...")
-    UglifyVariables(glb2, root2, options.RenameGlobals)
-
-    console.log("Generating code...")
     let result = PrintAst(ast2)
     result = `${watermark}\n\n${result}`
 
