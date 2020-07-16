@@ -65,6 +65,8 @@ function Main() {
                 writeWhat = luamin.Beautify(src, opts)
             } else if(option.toLowerCase() == "minify".substr(0,option.length).toLowerCase()) {
                 writeWhat = luamin.Minify(src, opts)
+            } else if(option.toLowerCase() == "uglify".substr(0,option.length).toLowerCase()) {
+                writeWhat = luamin.Uglify(src, opts)
             } else {
                 throw "No option? Gangster."
             }
@@ -86,9 +88,13 @@ function Main() {
 let questions = [
     {
         Question: "> Type? (%opts):",
-        Options: ["beautify", "minify"],
+        Options: ["beautify", "minify", "uglify"],
         CaseSensitive: false,
         Callback: (opt) => option=opt,
+        JumpIfOption: {
+            Length: 3,
+            Options: [2]
+        }
     },
     {
         Question: "> Rename Variables? (%opts):",
@@ -111,6 +117,18 @@ let questions = [
         Options: ["true", "false"],
         CaseSensitive: false,
         Callback: (opt) => solveMath=opt=="true"?true:false,
+        JumpIfOption: {
+            Length: 1000,
+            Options: [0, 1],
+        },
+    },
+
+
+    {
+        Question: "> Rename Globals (not safe)? (%opts):",
+        Options: ["true", "false"],
+        CaseSensitive: false,
+        Callback: (opt) => renameGlobals=opt=="true"?true:false,
     },
 ]
 
