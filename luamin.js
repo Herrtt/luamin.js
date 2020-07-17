@@ -26,7 +26,13 @@ const assert = function(a,b) {
     }
 }
 
-
+function parseFloat(str, radix) { // Thanks stackoverflow (hex numbers with decimal)
+    var parts = str.split(".");
+    if (parts.length > 1) {
+        return parseInt(parts[0], radix) + parseInt(parts[1], radix) / Math.pow(radix, parts[1].length);
+    }
+    return parseInt(parts[0], radix);
+}
 
 /** 
  * 
@@ -66,7 +72,7 @@ let Main_CharacterForEscape = {
 }
 
 const CharacterForEscape = new Proxy(Main_CharacterForEscape, { 
-    get(a, b) { return parseInt(b) }
+    get(a, b) { return parseFloat(b) }
 })
 
 let AllIdentStartChars = [
@@ -613,7 +619,8 @@ function CreateLuaParser(text) {
             })
 
             if (locals[node.Token.Source]) {
-                locals[node.Token.Source].UseCount++
+                locals[node.Token.Source].Tokens.push(node.Token)
+                locals[node.Token.Source].UseCountIncrease()
             }
 
             return node
@@ -844,7 +851,7 @@ function CreateLuaParser(text) {
             } else if(tk.Source == ":") {
                 let colonTk = get()
                 let methodName = expect("Ident")
-                let fargs = functionargs()
+                let fargs = functionargs(locals)
                 let node
                 node = MkNode({
                     "Type": "MethodExpr",
@@ -876,7 +883,7 @@ function CreateLuaParser(text) {
                 node = MkNode({
                     "Type": "CallExpr",
                     "Base": base,
-                    "FunctionArguments": functionargs(),
+                    "FunctionArguments": functionargs(locals),
                     "GetFirstToken": () => node.Base.GetFirstToken(),
                     "GetLastToken": () => node.FunctionArguments.GetLastToken(),
                 })
@@ -1189,7 +1196,7 @@ function CreateLuaParser(text) {
     function localdecl(locals) {
         let localKw = get()
         if (peek().Source == "function") {
-            let funcStat = funcdecl(false)
+            let funcStat = funcdecl(false, locals)
             if (funcStat.NameChain.length > 1) {
                 throw getTokenStartPosition(funcStat.Token_NameChainSeperator[0]) + ": `(` expected."
             }
@@ -1329,14 +1336,29 @@ function CreateLuaParser(text) {
                         stat.VarList.forEach(token => {
                             token.UseCount = 0
                             locals[token.Source] = token
+                            token.Tokens = []
+                            token.UseCountIncrease = () => {
+                                token.UseCount++
+                                token.Tokens.forEach(t => {
+                                    t.UseCount = token.UseCount
+                                })
+                            }
                         })
                         break
 
                     case "LocalFunctionStat":
                         let nameChain = stat.FunctionStat.NameChain
                         if (nameChain.length === 1) {
-                            nameChain[0].UseCount = 0
-                            locals[nameChain[0].Source] = nameChain[0]
+                            let token = nameChain[0]
+                            token.UseCount = 0
+                            locals[token.Source] = token
+                            token.Tokens = []
+                            token.UseCountIncrease = () => {
+                                token.UseCount++
+                                token.Tokens.forEach(t => {
+                                    t.UseCount = token.UseCount
+                                })
+                            }
                         }
                         break
 
@@ -1684,7 +1706,7 @@ function AddVariableInfo(ast) {
                 renameFunc(newName)
             })
         }
-
+        
         _var.Reference = function() {
             _var.UseCount++
         }
@@ -1698,6 +1720,7 @@ function AddVariableInfo(ast) {
         assert(name, "Missing var name")
         let _var = getGlobalVar(name)
         _var.RenameList.push(setNameFunc)
+        _var.Reference()
         return _var
     }
 
@@ -1724,6 +1747,7 @@ function AddVariableInfo(ast) {
         let _var = getLocalVar(currentScope, name)
         if (_var) {
             _var.RenameList.push(setNameFunc)
+            _var.Reference()
         } else {
             _var = addGlobalReference(name, setNameFunc)
         }
@@ -3077,11 +3101,11 @@ function SolveMath(ast) { // This is some ugly code sorry for whoever is seeing 
         if (rhs.Type == "BooleanLiteral") right = rSrc == "true" ? true : false;
 
         if (lhs.Type == "NumberLiteral") {
-            left = parseInt(lSrc)
+            left = parseFloat(lSrc)
             if (left == null) return;
         }
         if (rhs.Type == "NumberLiteral") {
-            right = parseInt(rSrc)
+            right = parseFloat(rSrc)
             if (right == null) return;
         }
 
@@ -3098,8 +3122,8 @@ function SolveMath(ast) { // This is some ugly code sorry for whoever is seeing 
             if (operator == ".." && lhs.Type == "StringLiteral" && rhs.Type == "StringLiteral") 
                 return `"${removething(lSrc) + removething(rSrc)}"`;
 
-            if (lhs.Type == "StringLiteral") left = parseInt(removething(left));
-            if (rhs.Type == "StringLiteral") right = parseInt(removething(right));
+            if (lhs.Type == "StringLiteral") left = parseFloat(removething(left));
+            if (rhs.Type == "StringLiteral") right = parseFloat(removething(right));
 
             if (left == null || right == null) return;
 
@@ -3171,7 +3195,7 @@ function SolveMath(ast) { // This is some ugly code sorry for whoever is seeing 
 
         if (rhs.Type == "BooleanLiteral") right = rSrc == "true" ? true : false;
         if (rhs.Type == "NumberLiteral") {
-            right = parseInt(rSrc)
+            right = parseFloat(rSrc)
             if (right === null) return;
         }
         if (rhs.Type == "StringLiteral") right = rSrc.substr(1,rSrc.length - 2);
@@ -3279,15 +3303,15 @@ function SolveMath(ast) { // This is some ugly code sorry for whoever is seeing 
             let token = expr.Token
             if (token != null) {
                 if (token.Type == "Number") {
-                    let int = parseInt(token.Source)
+                    let int = parseFloat(token.Source)
 
-                    if (int != null && isFinite(int))
+                    if (int !== null && isFinite(int))
                         token.Source = int + "";
                 }
 
                 if (token.Type == "String") {
                     token.Source = token.Source.replace(/\\\d+/gi, (got) => {
-                        let num = parseInt(got.substr(1,got.length-1))
+                        let num = parseFloat(got.substr(1,got.length-1))
                         if (num && isFinite(num) && ((num >= 97 && num <= 122) || (num >= 65 && num <= 90))) {
                           return String.fromCharCode(num)
                         }
@@ -3316,6 +3340,8 @@ function SolveMath(ast) { // This is some ugly code sorry for whoever is seeing 
             solveStat(expr.Body)
         } else if(expr.Type == "VariableExpr") {
             // Dont care
+            if (expr.Token.Source == "L_2_func")
+            console.log("GAMERTIME!", expr)
         } else if(expr.Type == "ParenExpr") {
             let exprExpr = expr.Expression
             if (exprExpr != null && exprExpr.Type == "ParenExpr") {
@@ -3367,6 +3393,13 @@ function SolveMath(ast) { // This is some ugly code sorry for whoever is seeing 
             }
         } else if(stat.Type == "LocalFunctionStat") {
             solveStat(stat.FunctionStat.Body)
+
+            if (stat.FunctionStat.NameChain.length === 1) {
+                if (stat.FunctionStat.NameChain[0].UseCount === 0) {
+                    return stat.Remove()
+                }
+            }
+
         } else if(stat.Type == "FunctionStat") {
             solveStat(stat.Body)
         } else if(stat.Type == "RepeatStat") {
@@ -3412,15 +3445,19 @@ function SolveMath(ast) { // This is some ugly code sorry for whoever is seeing 
             let willRun = t1 && t2 >= 0
 
             if (!willRun) {
-                stat.Remove()
+                return stat.Remove()
             }
         } else if(stat.Type == "WhileStat") {
             solveExpr(stat.Condition)
             solveStat(stat.Body)
 
-            switch (stat.Condition.Type) {
+            let condition = stat.Condition
+            switch (condition.Type) {
+                case "ParenExpr": {
+                    condition = condition.Expression
+                }
                 case "BooleanLiteral": {
-                    if (stat.Condition.Token.Source !== "false") {
+                    if (condition == null || condition.Token == null || condition.Token.Source !== "false") {
                         break
                     }
                 }
@@ -4660,23 +4697,55 @@ function UglifyVariables(globalScope, rootScope, renameGlobals) {
         if (uglyNames[i]) {
             return uglyNames[i]
         }
-        function OwOIfy(str) {
 
-            return str.split('').map(v=>{
-
-                let c = Math.round(Math.random())
-                if (c && v.toLowerCase() !== 'w') return v.toUpperCase();
-                return v;
-
-            }).join('')
-
-        }
-        const vars = ['uwu','owo','SENPAI']
         function gen() {
             let a = ""
             for (let i = 0; i<=20; i++) {
-                let num = Math.floor(Math.random() * vars.length)
-                a+= num !== 3? OwOIfy(vars[num]) : vars[num]
+                let num = Math.floor(Math.random() * 10)
+
+                switch (num) {
+                    case (0): { // ik this could been made a lot better (.-.)
+                        a += "UwU"
+                        break
+                    }
+                    case (1): {
+                        a += "OwO"
+                        break
+                    }
+                    case (2): {
+                        a += "uwu"
+                        break
+                    }
+                    case (3): {
+                        a += "owo"
+                        break
+                    }
+                    case (4): {
+                        a += "Uwu"
+                        break
+                    }
+                    case (5): {
+                        a += "uwU"
+                        break
+                    }
+                    case (6): {
+                        a += "Owo"
+                        break
+                    }
+                    case (7): {
+                        a += "owO"
+                        break
+                    }
+                    case (8): {
+                        a += "OWO"
+                        break
+                    }
+
+                    default: {
+                        a += "OWOSENPAI"
+                        break
+                    }
+                }
             }
             return a
         }
@@ -4804,8 +4873,8 @@ luaminp.Beautify = function(scr, options) {
     let ast = CreateLuaParser(scr)
     let [glb, root] = AddVariableInfo(ast)
 
-    if (renameVars == true) {
-        BeautifyVariables(glb, root, renameGlobals)
+    if (options.RenameVariables) {
+        BeautifyVariables(glb, root, options.RenameGlobals)
     }
 
     if (solveMath == true) {
