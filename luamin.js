@@ -574,21 +574,24 @@ function CreateLuaParser(text) {
     let block
     let expr
 
-    function exprlist() {
-        let exprList = [expr()]
+    function exprlist(locals) {
+        let exprList = [expr(locals)]
         let commaList = []
         while (peek().Source == ",") {
             commaList.push(get())
-            exprList.push(expr())
+            exprList.push(expr(locals))
         }
         return [exprList, commaList]
     }
 
-    function prefixexpr() {
+    function prefixexpr(locals) {
+        if (!locals) {
+            assert(false, "no locals")
+        }
         let tk = peek()
         if (tk.Source == '(') {
             let oparenTk = get()
-            let inner = expr()
+            let inner = expr(locals)
             let cparenTk = expect('Symbol', ')')
             let node
             node = MkNode({
@@ -608,6 +611,11 @@ function CreateLuaParser(text) {
                 'GetFirstToken': () => node.Token,
                 'GetLastToken': () => node.Token,
             })
+
+            if (locals[node.Token.Source]) {
+                locals[node.Token.Source].UseCount++
+            }
+
             return node
         } else {
             print(debugMark())
@@ -617,7 +625,7 @@ function CreateLuaParser(text) {
         }
     }
 
-    function tableexpr() {
+    function tableexpr(locals) {
         let obrace = expect("Symbol", "{")
         let entries = []
         let seperators = []
@@ -625,10 +633,10 @@ function CreateLuaParser(text) {
             if (peek().Source == '[') {
                 // Index
                 let obrac = get()
-                let index = expr()
+                let index = expr(locals)
                 let cbrac = expect("Symbol", "]")
                 let eq = expect("Symbol", "=")
-                let value = expr()
+                let value = expr(locals)
 
                 entries.push({
                     "EntryType": "Index",
@@ -642,7 +650,7 @@ function CreateLuaParser(text) {
                 // Field
                 let field = get()
                 let eq = get()
-                let value = expr()
+                let value = expr(locals)
                 entries.push({
                     "EntryType": "Field",
                     "Field": field,
@@ -651,7 +659,7 @@ function CreateLuaParser(text) {
                 })
             } else {
                 // Value
-                let value = expr()
+                let value = expr(locals)
                 entries.push({
                     "EntryType": "Value",
                     "Value": value,
@@ -761,14 +769,14 @@ function CreateLuaParser(text) {
         return node
     }
 
-    function functionargs() {
+    function functionargs(locals) {
         let tk = peek()
         if (tk.Source == "(") {
             let oparenTk = get()
             let argList = []
             let argCommaList = []
             while (peek().Source != ")") {
-                argList.push(expr())
+                argList.push(expr(locals))
                 if (peek().Source == ",") {
                     argCommaList.push(get())
                 } else {
@@ -793,7 +801,7 @@ function CreateLuaParser(text) {
             let node
             node = MkNode({
                 "CallType": "TableCall",
-                "TableExpr": expr(),
+                "TableExpr": expr(locals),
                 "GetFirstToken": () => node.TableExpr.GetFirstToken(),
                 "GetLastToken": () => node.TableExpr.GetLastToken(),
             })
@@ -813,8 +821,8 @@ function CreateLuaParser(text) {
     }
 
 
-    function primaryexpr() {
-        let base = prefixexpr()
+    function primaryexpr(locals) {
+        let base = prefixexpr(locals)
         assert(base, "nil prefixexpr")
 
         while (true) {
@@ -850,7 +858,7 @@ function CreateLuaParser(text) {
                 base = node
             } else if(tk.Source == "[") {
                 let obrac = get()
-                let index = expr()
+                let index = expr(locals)
                 let cbrac = expect("Symbol", "]")
                 let node
                 node = MkNode({
@@ -879,7 +887,7 @@ function CreateLuaParser(text) {
         }
     }
 
-    function simpleexpr() {
+    function simpleexpr(locals) {
         let tk = peek()
         if (tk.Type == "Number") {
             let node
@@ -928,19 +936,19 @@ function CreateLuaParser(text) {
             })
             return node
         } else if(tk.Source == "{") {
-            return tableexpr()
+            return tableexpr(locals)
         } else if(tk.Source == "function") {
             return funcdecl(true)
         } else {
-            return primaryexpr()
+            return primaryexpr(locals)
         }
     }
 
-    function subexpr(limit) {
+    function subexpr(limit, locals) {
         let curNode
         if (isUnop()) {
             let opTk = get()
-            let ex = subexpr(UnaryPriority)
+            let ex = subexpr(UnaryPriority, locals)
             let node
             node = MkNode({
                 "Type": "UnopExpr",
@@ -951,13 +959,13 @@ function CreateLuaParser(text) {
             })
             curNode = node
         } else {
-            curNode = simpleexpr()
+            curNode = simpleexpr(locals)
             assert(curNode, "nil sipleexpr")
         }  
     
         while (isBinop() && BinaryPriority[peek().Source][0] > limit) {
             let opTk = get()
-            let rhs = subexpr(BinaryPriority[opTk.Source][1])
+            let rhs = subexpr(BinaryPriority[opTk.Source][1], locals)
             assert(rhs, "RhsNeeded")
             let node
             node = MkNode({
@@ -973,10 +981,10 @@ function CreateLuaParser(text) {
         return curNode
     }
 
-    expr = () => subexpr(0)
+    expr = (locals) => subexpr(0, locals)
 
-    function exprstat() {
-        let ex = primaryexpr()
+    function exprstat(locals) {
+        let ex = primaryexpr(locals)
 
         if (ex.Type == "MethodExpr" || ex.Type == "CallExpr") {
 
@@ -993,18 +1001,18 @@ function CreateLuaParser(text) {
             let lhsSeperator = []
             while (peek().Source == ",") {
                 lhsSeperator.push(get())
-                let lhsPart = primaryexpr()
+                let lhsPart = primaryexpr(locals)
                 if (lhsPart.Type == "MethodExpr" || lhsPart.Type == "CallExpr") {
                     throw "Bad left hand side of asignment"
                 }
                 lhs.push(lhsPart)
             }
             let eq = expect("Symbol", "=")
-            let rhs = [expr()]
+            let rhs = [expr(locals)]
             let rhsSeperator = []
             while (peek().Source == ",") {
                 rhsSeperator.push(get())
-                rhs.push(expr())
+                rhs.push(expr(locals))
             }
 
             let node
@@ -1024,7 +1032,7 @@ function CreateLuaParser(text) {
 
     function ifstat(locals) {
         let ifKw = get()
-        let condition = expr()
+        let condition = expr(locals)
         let thenKw = expect("Keyword", "then")
         let ifBody = block(locals)
         let elseClauses = []
@@ -1033,7 +1041,7 @@ function CreateLuaParser(text) {
             let elseifCondition
             let elseifThenKw
             if (elseifKw.Source == "elseif") {
-                elseifCondition = expr()
+                elseifCondition = expr(locals)
                 elseifThenKw = expect("Keyword", "then")
             }
             let elseifBody = block(locals)
@@ -1086,7 +1094,7 @@ function CreateLuaParser(text) {
 
     function whilestat(locals) {
         let whileKw = get()
-        let condition = expr()
+        let condition = expr(locals)
         let doKw = expect("Keyword", "do")
         let [body, enKw] = blockbody("end", locals)
 
@@ -1111,7 +1119,7 @@ function CreateLuaParser(text) {
         let node = []
         if (peek().Source == "=") {
             let eqTk = get()
-            let [exprList, exprCommaList] = exprlist()
+            let [exprList, exprCommaList] = exprlist(locals)
             if (exprList.length < 2 || exprList.length > 3) {
                 throw "Expected 2 or 3 values for range bounds"
             }
@@ -1136,7 +1144,7 @@ function CreateLuaParser(text) {
             return node
         } else if(peek().Source == "in") {
             let inTk = get()
-            let [exprList, exprCommaList] = exprlist()
+            let [exprList, exprCommaList] = exprlist(locals)
             let doTk = expect("Keyword", "do")
             let [body, enTk] = blockbody("end", locals)
             let node
@@ -1162,7 +1170,7 @@ function CreateLuaParser(text) {
     function repeatstat(locals) {
         let repeatKw = get()
         let [body, untilTk] = blockbody("until", locals)
-        let condition = expr()
+        let condition = expr(locals)
 
         let node
         node = MkNode({
@@ -1202,7 +1210,7 @@ function CreateLuaParser(text) {
             let eqToken
             if (peek().Source == "=") {
                 eqToken = get()
-                let [exprList1, exprCommaList1] = exprlist()
+                let [exprList1, exprCommaList1] = exprlist(locals)
                 exprList = exprList1
                 exprCommaList = exprCommaList1
             }
@@ -1232,7 +1240,7 @@ function CreateLuaParser(text) {
         }
     }
 
-    function retstat() {
+    function retstat(locals) {
         let returnKw = get()
         let exprList
         let commaList
@@ -1240,7 +1248,7 @@ function CreateLuaParser(text) {
             exprList = []
             commaList = []
         } else {
-            [exprList, commaList] = exprlist()
+            [exprList, commaList] = exprlist(locals)
         }
         let self
         self = {
@@ -1272,28 +1280,28 @@ function CreateLuaParser(text) {
         return self
     }
 
-    function statement(locals, upvalues) {
+    function statement(locals) {
         let tok = peek()
         if (tok.Source == "if") {
-            return [false, ifstat(locals, upvalues)]
+            return [false, ifstat(locals)]
         } else if(tok.Source == "while") {
-            return [false, whilestat(locals, upvalues)]
+            return [false, whilestat(locals)]
         } else if(tok.Source == "do") {
-            return [false, dostat(locals, upvalues)]
+            return [false, dostat(locals)]
         } else if(tok.Source == "for") {
-            return [false, forstat(locals, upvalues)]
+            return [false, forstat(locals)]
         } else if(tok.Source == "repeat") {
-            return [false, repeatstat(locals, upvalues)]
+            return [false, repeatstat(locals)]
         } else if(tok.Source == "function") {
-            return [false, funcdecl(false, locals, upvalues)]
+            return [false, funcdecl(false, locals)]
         } else if(tok.Source == "local") {
-            return [false, localdecl(locals, upvalues)]
+            return [false, localdecl(locals)]
         } else if(tok.Source == "return") {
-            return [true, retstat(locals, upvalues)]
+            return [true, retstat(locals)]
         } else if(tok.Source == "break") {
-            return [true, breakstat(locals, upvalues)]
+            return [true, breakstat(locals)]
         } else {
-            return [false, exprstat(locals, upvalues)]
+            return [false, exprstat(locals)]
         }
     }
 
@@ -1302,8 +1310,7 @@ function CreateLuaParser(text) {
         let semicolons = []
         let isLast = false
 
-        let locals = []
-        let upvalues = a || []
+        let locals = a || []
 
         let thing
         while (!isLast && !isBlockFollow()) {
@@ -1312,17 +1319,29 @@ function CreateLuaParser(text) {
             }
             thing = peek()
 
-            let [isLast, stat] = statement(locals, upvalues)
+            let [isLast, stat] = statement(locals)
             if (stat) {
                 statements.push(stat);
-                if (stat.Type == "LocalVarStat" || stat.Type == "LocalFunctionStat") {
-                    if (stat.Type == "LocalVarStat") {
+
+
+                switch (stat.Type) {
+                    case "LocalVarStat":
                         stat.VarList.forEach(token => {
                             token.UseCount = 0
                             locals[token.Source] = token
                         })
-                    }
+                        break
 
+                    case "LocalFunctionStat":
+                        let nameChain = stat.FunctionStat.NameChain
+                        if (nameChain.length === 1) {
+                            nameChain[0].UseCount = 0
+                            locals[nameChain[0].Source] = nameChain[0]
+                        }
+                        break
+
+                    default:
+                        break
                 }
             }
 
