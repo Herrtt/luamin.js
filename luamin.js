@@ -4660,55 +4660,23 @@ function UglifyVariables(globalScope, rootScope, renameGlobals) {
         if (uglyNames[i]) {
             return uglyNames[i]
         }
+        function OwOIfy(str) {
 
+            return str.split('').map(v=>{
+
+                let c = Math.round(Math.random())
+                if (c && v.toLowerCase() !== 'w') return v.toUpperCase();
+                return v;
+
+            }).join('')
+
+        }
+        const vars = ['uwu','owo','SENPAI']
         function gen() {
             let a = ""
             for (let i = 0; i<=20; i++) {
-                let num = Math.floor(Math.random() * 10)
-
-                switch (num) {
-                    case (0): { // ik this could been made a lot better (.-.)
-                        a += "UwU"
-                        break
-                    }
-                    case (1): {
-                        a += "OwO"
-                        break
-                    }
-                    case (2): {
-                        a += "uwu"
-                        break
-                    }
-                    case (3): {
-                        a += "owo"
-                        break
-                    }
-                    case (4): {
-                        a += "Uwu"
-                        break
-                    }
-                    case (5): {
-                        a += "uwU"
-                        break
-                    }
-                    case (6): {
-                        a += "Owo"
-                        break
-                    }
-                    case (7): {
-                        a += "owO"
-                        break
-                    }
-                    case (8): {
-                        a += "OWO"
-                        break
-                    }
-
-                    default: {
-                        a += "OWOSENPAI"
-                        break
-                    }
-                }
+                let num = Math.floor(Math.random() * vars.length)
+                a+= num !== 3? OwOIfy(vars[num]) : vars[num]
             }
             return a
         }
