@@ -4697,55 +4697,25 @@ function UglifyVariables(globalScope, rootScope, renameGlobals) {
         if (uglyNames[i]) {
             return uglyNames[i]
         }
+        function OwOIfy(str) {
+
+            return str.split('').map(v=>{
+
+                let c = Math.round(Math.random())
+                if (c && v.toLowerCase() !== 'w') return v.toUpperCase();
+                return v;
+
+            }).join('')
+
+        }
+        const vars = ['uwu_my_holy_master', 'owosenpai', 'uwu','owo']
+
 
         function gen() {
             let a = ""
             for (let i = 0; i<=20; i++) {
-                let num = Math.floor(Math.random() * 10)
-
-                switch (num) {
-                    case (0): { // ik this could been made a lot better (.-.)
-                        a += "UwU"
-                        break
-                    }
-                    case (1): {
-                        a += "OwO"
-                        break
-                    }
-                    case (2): {
-                        a += "uwu"
-                        break
-                    }
-                    case (3): {
-                        a += "owo"
-                        break
-                    }
-                    case (4): {
-                        a += "Uwu"
-                        break
-                    }
-                    case (5): {
-                        a += "uwU"
-                        break
-                    }
-                    case (6): {
-                        a += "Owo"
-                        break
-                    }
-                    case (7): {
-                        a += "owO"
-                        break
-                    }
-                    case (8): {
-                        a += "OWO"
-                        break
-                    }
-
-                    default: {
-                        a += "OWOSENPAI"
-                        break
-                    }
-                }
+                let num = Math.floor(Math.random() * vars.length)
+                a+= num !== 3? OwOIfy(vars[num]) : vars[num]
             }
             return a
         }
@@ -4842,18 +4812,15 @@ let watermark = `--[[\n\tcode generated using luamin.js, Herrtt#3868\n--]]`
 let luaminp = {}
 
 luaminp.Minify = function(scr, options) {
-    let renameVars = options.RenameVariables
-    let renameGlobals = options.RenameGlobals
-    let solveMath = options.SolveMath
 
     let ast = CreateLuaParser(scr)
     let [glb, root] = AddVariableInfo(ast)
 
-    if (renameVars == true) {
-        MinifyVariables_2(glb, root, renameGlobals)
+    if (options.RenameVariables == true) {
+        MinifyVariables_2(glb, root, options.RenameGlobals)
     }
 
-    if (solveMath == true) {
+    if (options.SolveMath == true) {
         SolveMath(ast) // oboy
     }
 
@@ -4866,10 +4833,6 @@ luaminp.Minify = function(scr, options) {
 }
 
 luaminp.Beautify = function(scr, options) {
-    let renameVars = options.RenameVariables
-    let renameGlobals = options.RenameGlobals
-    let solveMath = options.SolveMath
-
     let ast = CreateLuaParser(scr)
     let [glb, root] = AddVariableInfo(ast)
 
@@ -4877,7 +4840,7 @@ luaminp.Beautify = function(scr, options) {
         BeautifyVariables(glb, root, options.RenameGlobals)
     }
 
-    if (solveMath == true) {
+    if (options.SolveMath == true) {
         SolveMath(ast) // oboy
     }
 
