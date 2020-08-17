@@ -292,10 +292,17 @@ function CreateLuaTokenStream(text) {
     let tokens = 0
     function token(type) {
         tokens++
+
+        let src = text.substr(tokenStart, (p - tokenStart))
+        if (type == "Number") {
+            if (src.substr(0,2) == "0x") {
+                src = parseInt(src, 16)
+            }
+        }
         let tk = {
             'Type': type,
             'LeadingWhite': text.substr(whiteStart, (tokenStart - whiteStart)),
-            'Source': text.substr(tokenStart, (p - tokenStart))
+            'Source': src
         }
         tokenBuffer.push(tk)
 
@@ -615,10 +622,10 @@ function CreateLuaParser(text) {
                 'GetLastToken': () => node.Token,
             })
 
-            if (locals[node.Token.Source]) {
+            if (locals[node.Token.Source] != null) {
                 locals[node.Token.Source].Tokens.push(node.Token)
                 locals[node.Token.Source].UseCountIncrease()
-            } else if(upvals[node.Token.Source]) {
+            } else if(upvals[node.Token.Source] != null) {
                 upvals[node.Token.Source].Tokens.push(node.Token)
                 upvals[node.Token.Source].UseCountIncrease()
             }
@@ -636,7 +643,14 @@ function CreateLuaParser(text) {
         let obrace = expect("Symbol", "{")
         let entries = []
         let seperators = []
+        let length = 0
+
+        let lastIndex
+
+        let valLen = 0
         while (peek().Source != "}") {
+            let indx
+            let val
             if (peek().Source == '[') {
                 // Index
                 let obrac = get()
@@ -644,6 +658,9 @@ function CreateLuaParser(text) {
                 let cbrac = expect("Symbol", "]")
                 let eq = expect("Symbol", "=")
                 let value = expr(locals, upvals)
+
+                indx = index.Token && index.Token.Source
+                val = value
 
                 entries.push({
                     "EntryType": "Index",
@@ -658,6 +675,9 @@ function CreateLuaParser(text) {
                 let field = get()
                 let eq = get()
                 let value = expr(locals, upvals)
+                
+                indx = field
+                val = value
                 entries.push({
                     "EntryType": "Field",
                     "Field": field,
@@ -666,7 +686,12 @@ function CreateLuaParser(text) {
                 })
             } else {
                 // Value
+        
                 let value = expr(locals, upvals)
+                //console.log(value)
+                
+                //if (lastIndex)
+
                 entries.push({
                     "EntryType": "Value",
                     "Value": value,
@@ -748,27 +773,6 @@ function CreateLuaParser(text) {
             if (peek().Source == ":") {
                 nameChainSeperator.push(get())
                 nameChain.push(expect("Ident"))
-            }
-
-            if (local) {
-                token.UseCount = 0
-                locals[token.Source] = token
-
-                let tokens = []
-                function lol() {
-                    token.UseCount++
-                    tokens.forEach(t => {
-                        t.UseCount = token.UseCount
-                    })
-                }
-
-                token.Tokens = {}
-                token.Tokens.push = (t) => {
-                    t.UseCountIncrease = lol
-                    t.UseCount = token.UseCount
-                    tokens.push(t)
-                }
-                token.UseCountIncrease = lol
             }
         }
 
@@ -1223,7 +1227,6 @@ function CreateLuaParser(text) {
                 throw getTokenStartPosition(funcStat.Token_NameChainSeperator[0]) + ": `(` expected."
             }
 
-            let node
             node = MkNode({
                 "Type": "LocalFunctionStat",
                 "FunctionStat": funcStat,
@@ -1334,15 +1337,31 @@ function CreateLuaParser(text) {
         }
     }
 
-    block = function(a) {
+
+    let blocks = 1
+    block = function(a, b) {
+        let myblocknum = blocks++
         let statements = []
         let semicolons = []
         let isLast = false
 
         let locals = []
-        let upvals = a || []
+        let upvals = []
+        if (b != null) {
+            for (let [i, v] of Object.entries(b)) {
+                upvals[i] = v
+            }
+        }
+
+        if (a != null) {
+            for (let [i, v] of Object.entries(a)) {
+                upvals[i] = v
+            }
+        }
+
 
         let thing
+        let i = 0
         while (!isLast && !isBlockFollow()) {
             if (thing && thing == peek()) {
                 print(`INFINITE LOOP POSSIBLE ON STATEMENT ${thing.Source} :`,thing)
@@ -1359,6 +1378,7 @@ function CreateLuaParser(text) {
                         stat.VarList.forEach(token => {
 
                             token.UseCount = 0
+                            token.Number = i++
                             locals[token.Source] = token
 
                             let tokens = []
@@ -1373,8 +1393,11 @@ function CreateLuaParser(text) {
                             token.Tokens.push = (t) => {
                                 t.UseCountIncrease = lol
                                 t.UseCount = token.UseCount
+                                t.Tokens = token.Tokens
                                 tokens.push(t)
                             }
+                            token.Tokens.get = () => tokens
+
                             token.UseCountIncrease = lol
                         })
                         break
@@ -1385,6 +1408,7 @@ function CreateLuaParser(text) {
                         if (nameChain.length === 1) {
                             let token = nameChain[0]
                             token.UseCount = 0
+                            token.Number = i++
                             locals[token.Source] = token
 
                             let tokens = []
@@ -1399,8 +1423,11 @@ function CreateLuaParser(text) {
                             token.Tokens.push = (t) => {
                                 t.UseCountIncrease = lol
                                 t.UseCount = token.UseCount
+                                t.Tokens = token.Tokens
                                 tokens.push(t)
                             }
+                            token.Tokens.get = () => tokens
+
                             token.UseCountIncrease = lol
                         }
                         break
@@ -1441,7 +1468,7 @@ function CreateLuaParser(text) {
         return node
     }
 
-    return block()
+    return block([], [])
 }
 
 function VisitAst(ast, visitors) {
@@ -1536,6 +1563,7 @@ function VisitAst(ast, visitors) {
             // no
         } else if(expr.Type == "ParenExpr") {
             visitExpr(expr.Expression)
+
         } else if(expr.Type == "TableLiteral") {
             expr.EntryList.forEach((entry, index) => {
                 if (entry.EntryType == "Field") {
@@ -2324,12 +2352,13 @@ function FormatAst(ast) {
         if (expr.Type == "BinopExpr") {
             formatExpr(expr.Lhs)
             formatExpr(expr.Rhs)
-            if (expr.Token_Op.Source == "..") {
-
-            } else {
+            //if (expr.Token_Op.Source == "..") { // ayeaye
+            //    expr.Token_Op.LeadingWhite = " "
+             //   expr.Rhs.GetFirstToken.LeadingWhite = " "
+            //} else {
                 padExpr(expr.Rhs)
                 padToken(expr.Token_Op)
-            }
+            //}
         } else if(expr.Type == "UnopExpr") {
             formatExpr(expr.Rhs)
         } else if(expr.Type == "NumberLiteral" || expr.Type == "StringLiteral"
@@ -3069,6 +3098,18 @@ function SolveMath(ast) { // This is some ugly code sorry for whoever is seeing 
         return a
     }
 
+    function createunop(operator, rhs) {
+        let a
+        a = {
+            "Type": "UnopExpr",
+            "Token_Op": {"Type":"Symbol", "LeadingWhite":"", "Source": operator},
+            "Rhs": rhs,
+            "GetFirstToken": () => a.Token_Op,
+            "GetLastToken": () => a.Rhs.GetLastToken(),
+        }
+        return a
+    }
+
     function replace(a,b) {
         /*for (var [i,v] of Object.entries(a)) {
             a[i] = null
@@ -3103,10 +3144,16 @@ function SolveMath(ast) { // This is some ugly code sorry for whoever is seeing 
         return newret
     }
 
+    function removeParen(a) {
+        if (typeof a == "object" && a.Type == "ParenExpr")
+            return replace(a, a.Expression)
+    }
 
-    function solvebinop(operator, lhs, rhs) {
-        if (lhs && lhs.Type == "ParenExpr") lhs = lhs.Expression;
-        if (rhs && rhs.Type == "ParenExpr") rhs = rhs.Expression;
+    function solvebinop(operator, left1, right1) {
+        let lhs = left1
+        let rhs = right1
+        if (left1 && left1.Type == "ParenExpr") lhs = left1.Expression;
+        if (right1 && right1.Type == "ParenExpr") rhs = right1.Expression;
 
         if (lhs == null || rhs == null || lhs.Type == null || rhs.Type == null) return;
 
@@ -3194,34 +3241,56 @@ function SolveMath(ast) { // This is some ugly code sorry for whoever is seeing 
         if (rhs.Type == "TableLiteral" && b != null) {
             let extra = []
             let amount = 0
-            let metCall = false
+            let ignoreRest = false
+            let no = false
+            let lastIndex = 0
+
             b.forEach((v,i) => {
-                if (metCall) {
+                if (ignoreRest) {
                     extra.push(v)
                 } else {
                     if (v.EntryType == "Value" || v.EntryType == "Index") {
-                        if (v.Index == null || (v.Index.Type == "NumberLiteral" && v.Value)) {
+                        if ((v.Index == null || v.Index.Type == "NumberLiteral") && v.Value) {
+
+                            let index = (v.Index != null && v.Index.Token != null && v.Index.Token.Source !== null) ? (v.Index.Token.Source) : lastIndex + 1
+
+                            if (index.toString() !== (++lastIndex).toString()) {
+                                ignoreRest = true
+                                no = true
+                                return extra.push(v)
+                            }
+
                             if (v.Value.Type != "CallExpr") {
                                 amount++
                             } else {
-                                metCall = true
+                                ignoreRest = true
                                 extra.push(v)
                             }
+
+                        } else {
+                            extra.push(v)
+                            //no = true
                         }
                     }
                 }
             })
             // this became a mess really quick
-            rhs.EntryList = extra
+
+            if (no) {
+                return
+            }
 
             if (operator == "#") {
+
+                rhs.EntryList = extra
+
                 if (rhs.EntryList.length <= 0) {
-                    return createtype("NumberLiteral", amount || 0)
+                    return createtype("NumberLiteral", amount !== null ? amount : rhs.EntryList.length)
                 } else if(amount <= 0) {
-                    return rhs
+                    return createunop("#", rhs)
                 }
     
-                let newex = createbinop("+", createtype("NumberLiteral", amount), rhs);
+                let newex = createbinop("+", createtype("NumberLiteral", amount), createunop("#", rhs));
                 return newex
             }
         }
@@ -3241,10 +3310,11 @@ function SolveMath(ast) { // This is some ugly code sorry for whoever is seeing 
         }
 
         if (right != null) {
-            if (operator == "#") return (right.length);
+            if (operator == "#") return right.length;
             if (operator == "-") return -right;
         }
     }
+
 
     solveExpr = function(expr) {
         if (expr.Type == "BinopExpr") {
@@ -3285,6 +3355,25 @@ function SolveMath(ast) { // This is some ugly code sorry for whoever is seeing 
                             return
                         }
                         return
+                    }
+                }
+                
+                if (expr.Lhs.Type == "ParenExpr") {
+                    let exprt = expr.Lhs
+                    let expression = exprt.Expression
+                    if(expression.Type == "NumberLiteral" || expression.Type == "StringLiteral"
+                        || expression.Type == "NilLiteral" || expression.Type == "BooleanLiteral")
+                    {
+                        //expr.Lhs = expression
+                    }
+                }
+                if (expr.Rhs.Type == "ParenExpr") {
+                    let exprt = expr.Rhs
+                    let expression = exprt.Expression
+                    if(expression.Type == "NumberLiteral" || expression.Type == "StringLiteral"
+                        || expression.Type == "NilLiteral" || expression.Type == "BooleanLiteral")
+                    {
+                        //expr.Rhs = expression
                     }
                 }
             }
@@ -3379,6 +3468,13 @@ function SolveMath(ast) { // This is some ugly code sorry for whoever is seeing 
                 expr.Expression = exprExpr.Expression
             }
             solveExpr(expr.Expression)
+
+            if(expr.Type == "NumberLiteral" || expr.Type == "StringLiteral"
+                || expr.Type == "NilLiteral" || expr.Type == "BooleanLiteral"
+                || expr.Type == "VargLiteral") 
+            {
+                removeParen(expr)
+            }
         } else if(expr.Type == "TableLiteral") {
             expr.EntryList.forEach((entry, index) => {
                 if (entry.EntryType == "Field") {
@@ -3427,7 +3523,7 @@ function SolveMath(ast) { // This is some ugly code sorry for whoever is seeing 
 
             if (stat.FunctionStat.NameChain.length === 1) {
                 if (stat.FunctionStat.NameChain[0].UseCount === 0) {
-                    //return stat.Remove()
+                    return stat.Remove()
                 }
             }
 
@@ -3451,18 +3547,19 @@ function SolveMath(ast) { // This is some ugly code sorry for whoever is seeing 
             })
             solveStat(stat.Body)
 
-            if (stat.Body.Type == "StatList" && stat.Body.StatementList.length === 0) {
-                //return stat.Remove()
-            }
-            
+
             let a = stat.RangeList[0]
             let b = stat.RangeList[1]
             let c = stat.RangeList[2]
             if (a == null || b == null) {
-                //return stat.Remove()
+                return stat.Remove()
             }
 
-            if (a.Type != "NumberLiteral" || b.Type != "NumberLiteral" || (c != null && c.Type != "NumberLiteral") ) {
+            removeParen(a)
+            removeParen(b)
+            removeParen(c)
+
+            if (a.Type != "NumberLiteral" || b.Type != "NumberLiteral" || (c != null && c.Type != "NumberLiteral" || c == null) ) {
                 return // Nope.
             }
 
@@ -3476,7 +3573,11 @@ function SolveMath(ast) { // This is some ugly code sorry for whoever is seeing 
             let willRun = t1 && t2 >= 0
 
             if (!willRun) {
-                //return stat.Remove()
+                return stat.Remove()
+            }
+
+            if (stat.Body.Type == "StatList" && stat.Body.StatementList.length === 0) {
+                return stat.Remove()
             }
         } else if(stat.Type == "WhileStat") {
             solveExpr(stat.Condition)
@@ -3493,7 +3594,7 @@ function SolveMath(ast) { // This is some ugly code sorry for whoever is seeing 
                     }
                 }
                 case "NilLiteral":
-                    //stat.Remove()
+                    stat.Remove()
                     break
 
                 default: break
@@ -3502,7 +3603,7 @@ function SolveMath(ast) { // This is some ugly code sorry for whoever is seeing 
             solveStat(stat.Body)
 
             if (stat.Body === null || (stat.Body.Type == "StatList" && stat.Body.StatementList.length == 0)) {
-                //return stat.Remove()
+                return stat.Remove()
             }
         } else if(stat.Type == "IfStat") {
             solveExpr(stat.Condition)
@@ -3514,6 +3615,22 @@ function SolveMath(ast) { // This is some ugly code sorry for whoever is seeing 
                 solveStat(clause.Body)   
             })
 
+            let condition = stat.Condition
+            switch (condition.Type) {
+                case "ParenExpr": {
+                    condition = condition.Expression
+                }
+                case "BooleanLiteral": {
+                    if (condition == null || condition.Token == null || condition.Token.Source !== "false") {
+                        break
+                    }
+                }
+                case "NilLiteral":
+                    stat.Remove()
+                    break
+
+                default: break
+            }
         } else if(stat.Type == "CallExprStat") {
             solveExpr(stat.Expression)
         } else if(stat.Type == "AssignmentStat") {
@@ -4900,9 +5017,7 @@ luaminp.Uglify = function(src1, options) {
             })*/
             return
         }
-        //console.log 
         alreadyAdded[v.Name] = v
-        //console.log("Heey", v)
 
         ast1.SemicolonList = [{type: "Symbol", Source: ";", LeadingWhite: ""}].concat(ast1.SemicolonList)
         lol = [CreateLuaParser(`local ${v.Name} = ${v.Name}`).StatementList[0]].concat(lol)
