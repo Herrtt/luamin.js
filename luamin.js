@@ -28,7 +28,7 @@ const assert = function(a,b) {
 
 function parseFloat(str, radix) { // Thanks stackoverflow (hex numbers with decimal)
     if (!str) return 0;
-    var parts = toString(str).split(".");
+    var parts = str.toString().split(".");
     if (parts.length > 1) {
         return parseInt(parts[0], radix) + parseInt(parts[1], radix) / Math.pow(radix, parts[1].length);
     }
@@ -2398,7 +2398,7 @@ function FormatAst(ast) {
         if (tk.LeadingWhite.length > 0) {
             return tk.LeadingWhite.substr(0,1)
         } else {
-            return toString(tk.Source).substr(0,1)
+            return tk.Source.toString().substr(0,1)
         }
     }
 
@@ -2770,8 +2770,8 @@ function StripAst(ast) {
 
         stript(tokenB)
         
-        let lastCh = tokenA.Source.substr(-0,1)
-        let firstCh = tokenB.Source.substr(0,1)
+        let lastCh = tokenA.Source.toString().substr(-0,1)
+        let firstCh = tokenB.Source.toString().substr(0,1)
 
         if ((lastCh == "-" && firstCh == "-") || (AllIdentChars.includes(lastCh) && AllIdentChars.includes(firstCh))) {
             tokenB.LeadingWhite = ' '
@@ -3158,7 +3158,7 @@ function SolveMath(ast) { // This is some ugly code sorry for whoever is seeing 
             "Token": {
                 "Type": type2 == null ? "Number" : type2,
                 "LeadingWhite": "",
-                "Source": "" + val,
+                "Source": val,
             },
             "GetFirstToken": () => a.Token,
             "GetLastToken": () => a.Token,
@@ -3171,7 +3171,7 @@ function SolveMath(ast) { // This is some ugly code sorry for whoever is seeing 
         a = {
             "Type": type,
             "LeadingWhite": "",
-            "Source": "" + val,
+            "Source": val,
         }
         return a
     }
@@ -3432,7 +3432,7 @@ function SolveMath(ast) { // This is some ugly code sorry for whoever is seeing 
                             return
                         } else if(typeof(val) == "number") {
                             if (isFinite(val) == true) {
-                                let num = createtype("NumberLiteral", val, "Number")
+                                let num = createtype("NumberLiteral", val.toString(), "Number")
                                 replace(expr, num)
                                 return
                             }
@@ -3519,7 +3519,7 @@ function SolveMath(ast) { // This is some ugly code sorry for whoever is seeing 
                     let int = parseFloat(token.Source)
 
                     if (int !== null && isFinite(int))
-                        token.Source = toString(int);
+                        token.Source = int.toString();
                 }
 
                 if (token.Type == "String") {
