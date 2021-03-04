@@ -28,7 +28,7 @@ const assert = function(a,b) {
 
 function parseFloat(str, radix) { // Thanks stackoverflow (hex numbers with decimal)
     if (!str) return 0;
-    var parts = str.split(".");
+    var parts = toString(str).split(".");
     if (parts.length > 1) {
         return parseInt(parts[0], radix) + parseInt(parts[1], radix) / Math.pow(radix, parts[1].length);
     }
@@ -486,9 +486,6 @@ function CreateLuaTokenStream(text) {
             get()
             token('Symbol')
         } else if(Symbols.includes(c1)) {
-            if (look() == '+' || look() == '-') {
-                p++
-            }
             token("Symbol")
         } else {
             throw(`Bad symbol \`${c1}\` in source.`)
@@ -659,7 +656,6 @@ function CreateLuaParser(text) {
             return node
         } else {
             print(debugMark())
-
             let a = (`${getTokenStartPosition(tk)}: Unexpected symbol. ${tk.Type} ${tk.Source}`)
             throw a
         }
@@ -941,8 +937,6 @@ function CreateLuaParser(text) {
                 })
                 base = node
             } else if(Compounds.includes(tk.Source)) {
-                console.log("COMPOUND!")
-
                 let compoundTk = get()
                 let rhsExpr = expr(locals, upvals)
 
@@ -2404,7 +2398,7 @@ function FormatAst(ast) {
         if (tk.LeadingWhite.length > 0) {
             return tk.LeadingWhite.substr(0,1)
         } else {
-            return tk.Source.substr(0,1)
+            return toString(tk.Source).substr(0,1)
         }
     }
 
@@ -3525,7 +3519,7 @@ function SolveMath(ast) { // This is some ugly code sorry for whoever is seeing 
                     let int = parseFloat(token.Source)
 
                     if (int !== null && isFinite(int))
-                        token.Source = int + "";
+                        token.Source = toString(int);
                 }
 
                 if (token.Type == "String") {
