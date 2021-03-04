@@ -27,6 +27,7 @@ const assert = function(a,b) {
 }
 
 function parseFloat(str, radix) { // Thanks stackoverflow (hex numbers with decimal)
+    if (!str) return 0;
     var parts = str.split(".");
     if (parts.length > 1) {
         return parseInt(parts[0], radix) + parseInt(parts[1], radix) / Math.pow(radix, parts[1].length);
@@ -136,7 +137,15 @@ let Symbols = [
 ]
 
 let EqualSymbols = [
-    '~', '=', '>', '<',
+    '~', '=', '>', '<'
+]
+
+let CompoundSymbols = [
+    '+', '-', '*', '/', '^', '..', '%'
+]
+
+let Compounds = [
+    '+=', '-=', '*=', '/=', '^=', '..=', '%='
 ]
 
 let Keywords = [
@@ -145,7 +154,7 @@ let Keywords = [
     'function', 'goto',     'if',   'in',
     'local',    'nil',      'not',  'or', 
     'repeat',   'return',   'then', 'true', 
-    'until',    'while',
+    'until',    'while', 'continue'
 ]
 
 let BlockFollowKeyword = [
@@ -162,8 +171,10 @@ let BinopSet = [
     
     '..',   '.',     ':',   //dots / colons
     
-    '>',    '<',     '<=',  '>=',   '~=',   '==',   //arrows / conditional
+    '>',    '<',     '<=',  '>=',   '~=',   '==',  //arrows / conditional
     
+    '+=', '-=', '*=', '/=', '%=', '^=', '..=', // compounds
+
 	'and',  'or'    // conditional 
 ]
 
@@ -183,6 +194,13 @@ let BinaryPriority = {
     '<': [3, 3],
     '>=': [3, 3],
     '<=': [3, 3],
+    '+=': [3, 3],
+    '-=': [3, 3],
+    '*=': [3, 3],
+    '/=': [3, 3],
+    '^=': [3, 3],
+    '%=': [3, 3],
+    '..=': [3, 3],
     'and': [2, 2],
     'or': [1, 1],
 }
@@ -449,10 +467,12 @@ function CreateLuaTokenStream(text) {
                 token("Symbol")
             }
         } else if(c1 == '.') {
-            // Greedily consume up to 3 `.` for . / .. / ... tokens
+            // Greedily consume up to 3 `.` for . / .. / ... tokens / ..= compound
             if (look() == '.') {
                 get()
                 if (look() == '.') {
+                    get()
+                } else if(look() == '=') {
                     get()
                 }
             }
@@ -462,7 +482,13 @@ function CreateLuaTokenStream(text) {
                 p++
             }
             token("Symbol")
+        } else if(CompoundSymbols.includes(c1) && look() == '=') {
+            get()
+            token('Symbol')
         } else if(Symbols.includes(c1)) {
+            if (look() == '+' || look() == '-') {
+                p++
+            }
             token("Symbol")
         } else {
             throw(`Bad symbol \`${c1}\` in source.`)
@@ -914,6 +940,23 @@ function CreateLuaParser(text) {
                     "GetLastToken": () => node.FunctionArguments.GetLastToken(),
                 })
                 base = node
+            } else if(Compounds.includes(tk.Source)) {
+                console.log("COMPOUND!")
+
+                let compoundTk = get()
+                let rhsExpr = expr(locals, upvals)
+
+                let node
+                node = MkNode({
+                    "Type": "CompoundStat",
+                    "Base": base,
+                    "Token_Compound": compoundTk,
+                    "Rhs": rhsExpr,
+                    "Lhs": base,
+                    "GetFirstToken": () => node.Base.GetFirstToken(),
+                    "GetLastToken": () => node.Rhs.GetLastToken(),
+                })
+                base = node
             } else {
                 return base
             }
@@ -1028,6 +1071,8 @@ function CreateLuaParser(text) {
                 "GetLastToken": () => node.Expression.GetLastToken(),
             })
             return node
+        } else if(ex.Type == "CompoundStat") {
+            return ex
         } else {
             let lhs = [ex]
             let lhsSeperator = []
@@ -1312,6 +1357,18 @@ function CreateLuaParser(text) {
         return self
     }
 
+    function continuestat(locals, upvals) {
+        let continueKw = get()
+        let self
+        self = {
+            "Type": "ContinueStat",
+            "Token_Continue": continueKw,
+            "GetFirstToken": () => self.Token_Continue,
+            "GetLastToken": () => self.Token_Continue,
+        }
+        return self
+    }
+
     function statement(locals, upvals) {
         let tok = peek()
         if (tok.Source == "if") {
@@ -1332,6 +1389,8 @@ function CreateLuaParser(text) {
             return [true, retstat(locals, upvals)]
         } else if(tok.Source == "break") {
             return [true, breakstat(locals, upvals)]
+        } else if(tok.Source == "continue") {
+            return [true, continuestat(locals, upvals)]
         } else {
             return [false, exprstat(locals, upvals)]
         }
@@ -1486,6 +1545,7 @@ function VisitAst(ast, visitors) {
     let StatType = {
 		'StatList': true,
 		'BreakStat': true,
+        'ContinueStat': true,
 		'ReturnStat': true,
 		'LocalVarStat': true,
 		'LocalFunctionStat': true,
@@ -1498,6 +1558,7 @@ function VisitAst(ast, visitors) {
 		'IfStat': true,
 		'CallExprStat': true,
 		'AssignmentStat': true,
+        'CompoundStat': true
     }
 
     for (var [visitorSubject, visitor] of Object.entries(visitors)) {
@@ -1577,6 +1638,9 @@ function VisitAst(ast, visitors) {
                     throw "unreachable"
                 }
             })
+        } else if(expr.Type == "CompoundStat") {
+            visitExpr(expr.Lhs)
+            visitExpr(expr.Rhs)
         } else {
             throw `unreachable, type: ${expr.Type}: ${expr}`
         }
@@ -1604,6 +1668,8 @@ function VisitAst(ast, visitors) {
             })
         } else if(stat.Type == "BreakStat") {
             // no
+        } else if(stat.Type == "ContinueStat") {
+            // fuck off
         } else if(stat.Type == "ReturnStat") {
             stat.ExprList.forEach((expr, index) => {
                 visitExpr(expr)
@@ -1647,6 +1713,8 @@ function VisitAst(ast, visitors) {
             })
         } else if(stat.Type == "CallExprStat") {
             visitExpr(stat.Expression)
+        } else if(stat.Type == "CompoundStat") {
+            visitExpr(stat.Rhs)
         } else if(stat.Type == "AssignmentStat") {
             stat.Lhs.forEach((ex) => {
                 visitExpr(ex)
@@ -2095,6 +2163,8 @@ function PrintAst(ast) {
                 }
             })
             printt(expr.Token_CloseBrace)
+        } else if(expr.Type == "CompoundStat") {
+            printStat(expr)
         } else {
             throw `unreachable, type: ${expr.Type}: ${expr}`
         }
@@ -2122,6 +2192,8 @@ function PrintAst(ast) {
 
         } else if(stat.Type == "BreakStat") {
             printt(stat.Token_Break)
+        } else if(stat.Type == "ContinueStat") {
+            printt(stat.Token_Continue)
         } else if(stat.Type == "ReturnStat") {
             printt(stat.Token_Return)
             stat.ExprList.forEach((expr, index) => {
@@ -2262,6 +2334,11 @@ function PrintAst(ast) {
             printt(stat.Token_End)
         } else if(stat.Type == "CallExprStat") {
             printExpr(stat.Expression)
+        } else if(stat.Type == "CompoundStat") { // Fuck you Wally
+            printExpr(stat.Lhs)
+            printt(stat.Token_Compound)
+            printExpr(stat.Rhs)
+            stat.Type = "CompoundStat"
         } else if(stat.Type == "AssignmentStat") {
             stat.Lhs.forEach((ex, index) => {
                 printExpr(ex)
@@ -2465,6 +2542,8 @@ function FormatAst(ast) {
                     applyIndent(expr.Token_CloseBrace)
                 }
             }
+        } else if(expr.Type == 'CompoundStat') {
+            formatStat(expr)
         } else {
             print(expr)
             throw(`unreachable, type: ${expr.Type}:`+ expr)
@@ -2487,6 +2566,8 @@ function FormatAst(ast) {
             })
         } else if(stat.Type == "BreakStat") {
             // no
+        } else if(stat.Type == "ContinueStat") {
+            // fuck off
         } else if(stat.Type == "ReturnStat") {
             
             stat.ExprList.forEach((expr, index) => {
@@ -2650,6 +2731,11 @@ function FormatAst(ast) {
             formatBody(lastBodyOpen, lastBody, stat.Token_End)
         } else if(stat.Type == "CallExprStat") {
             formatExpr(stat.Expression)
+        } else if(stat.Type == "CompoundStat") {
+            padExpr(stat.Lhs)
+            formatExpr(stat.Lhs)
+            
+            formatExpr(stat.Rhs)
         } else if(stat.Type == "AssignmentStat") {
             stat.Lhs.forEach((ex, index) => {
                 formatExpr(ex)
@@ -2845,6 +2931,8 @@ function StripAst(ast) {
             }
         } else if(stat.Type == "BreakStat") {
             stript(stat.Token_Break)
+        } else if(stat.Type == "ContinueStat") {
+            stript(stat.Token_Continue)
         } else if(stat.Type == "ReturnStat") {
             stript(stat.Token_Return)
             stat.ExprList.forEach((expr, index) => {
@@ -3019,6 +3107,15 @@ function StripAst(ast) {
             bodyjoint(lastBodyOpen, lastBody, stat.Token_End)
         } else if(stat.Type == "CallExprStat") {
             stripExpr(stat.Expression)
+        } else if(stat.Type == "CompoundStat") {
+            stripExpr(stat.Lhs)
+            stript(stat.Token_Compound)
+            stripExpr(stat.Rhs)
+
+            joint(stat.Lhs.GetLastToken, stat.Token_Compound)
+            joint(stat.Token_Compound, stat.Rhs.GetFirstToken)
+
+            lastBody = stat.Body
         } else if(stat.Type == "AssignmentStat") {
             stat.Lhs.forEach((ex, index) => {
                 stripExpr(ex)
@@ -3508,6 +3605,8 @@ function SolveMath(ast) { // This is some ugly code sorry for whoever is seeing 
             })
         } else if(stat.Type == "BreakStat") {
             // no
+        } else if(stat.Type == "ContinueStat") {
+            // fuck off
         } else if(stat.Type == "ReturnStat") {
             stat.ExprList.forEach((expr, index) => {
                 solveExpr(expr)
@@ -3633,6 +3732,9 @@ function SolveMath(ast) { // This is some ugly code sorry for whoever is seeing 
             }
         } else if(stat.Type == "CallExprStat") {
             solveExpr(stat.Expression)
+        } else if(stat.Type == "CompoundStat") {
+            solveExpr(stat.Lhs)
+            solveExpr(stat.Rhs)
         } else if(stat.Type == "AssignmentStat") {
             stat.Lhs.forEach((ex, index) => {
                 solveExpr(ex)
@@ -4024,8 +4126,8 @@ function Uglify(ast) {
 
         let maxstrlength = 100
 
-        let leftover = value - Math.min(value, maxtablelength) // Set max table length to 100
-        let strlol = genHexString(Math.min(value, maxtablelength))
+        let leftover = value - Math.min(value, maxstrlength) // Set max table length to 100
+        let strlol = genHexString(Math.min(value, maxstrlength))
 
         let scr = `
             local a = "${strlol}"
@@ -4127,8 +4229,8 @@ function Uglify(ast) {
                     if (value !== null && typeof(value) == "number" && isFinite(value)) {
                         if (howtofuckup === 0) { // Slow as fuck
                             // #String
-                            //let newexpr = turnNumberToFString(value)
-                            //replace(expr, newexpr)
+                            let newexpr = turnNumberToFString(value)
+                            replace(expr, newexpr)
                             break// uglifyExpr(expr, true) // Just fucks me up
                         } else if(howtofuckup == 1) {
                             // Math shit
@@ -4164,7 +4266,7 @@ function Uglify(ast) {
 
                     let [str, start, end] = removething(expr.Token.Source)
 
-                    let howtofuckup = Math.floor(Math.random() * 5)
+                    let howtofuckup = 1//Math.floor(Math.random() * 5)
                     if (howtofuckup == 0) {
                         let b = ""
                         let staph = false
@@ -4342,6 +4444,8 @@ function Uglify(ast) {
             }
         } else if(stat.Type == "BreakStat") {
             stript(stat.Token_Break)
+        } else if(stat.Type == "ContinueStat") {
+            stript(stat.Token_Continue)
         } else if(stat.Type == "ReturnStat") {
             stript(stat.Token_Return)
             stat.ExprList.forEach((expr, index) => {
@@ -4516,6 +4620,9 @@ function Uglify(ast) {
             bodyjoint(lastBodyOpen, lastBody, stat.Token_End)
         } else if(stat.Type == "CallExprStat") {
             uglifyExpr(stat.Expression, uglied)
+        } else if(stat.Type == "CompoundStat") {
+            uglifyExpr(stat.Lhs)
+            uglifyExpr(stat.Rhs)
         } else if(stat.Type == "AssignmentStat") {
             stat.Lhs.forEach((ex, index) => {
                 uglifyExpr(ex, uglied)
@@ -5020,7 +5127,7 @@ luaminp.Uglify = function(src1, options) {
         alreadyAdded[v.Name] = v
 
         ast1.SemicolonList = [{type: "Symbol", Source: ";", LeadingWhite: ""}].concat(ast1.SemicolonList)
-        lol = [CreateLuaParser(`local ${v.Name} = ${v.Name}`).StatementList[0]].concat(lol)
+        lol = [CreateLuaParser(`local ${v.Name} = getfenv()['${v.Name}']`).StatementList[0]].concat(lol)
 
         //v.AssignedTo = true
         /*v.RenameList.push((a) => {
