@@ -2726,10 +2726,12 @@ function FormatAst(ast) {
         } else if(stat.Type == "CallExprStat") {
             formatExpr(stat.Expression)
         } else if(stat.Type == "CompoundStat") {
-            padExpr(stat.Lhs)
             formatExpr(stat.Lhs)
-            
             formatExpr(stat.Rhs)
+
+            padExpr(stat.Lhs)
+            padExpr(stat.Rhs)
+            padToken(stat.Token_Compound)
         } else if(stat.Type == "AssignmentStat") {
             stat.Lhs.forEach((ex, index) => {
                 formatExpr(ex)
@@ -3106,8 +3108,8 @@ function StripAst(ast) {
             stript(stat.Token_Compound)
             stripExpr(stat.Rhs)
 
-            joint(stat.Lhs.GetLastToken, stat.Token_Compound)
-            joint(stat.Token_Compound, stat.Rhs.GetFirstToken)
+            joint(stat.Lhs.GetLastToken(), stat.Token_Compound)
+            joint(stat.Token_Compound, stat.Rhs.GetFirstToken())
 
             lastBody = stat.Body
         } else if(stat.Type == "AssignmentStat") {
