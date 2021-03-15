@@ -5,6 +5,3 @@
 
 local L_1_ = "";
 a ..= "asd";
-a ..= "n";
-
-print(L_1_);

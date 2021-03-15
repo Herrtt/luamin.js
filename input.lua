@@ -1,4 +1,7 @@
 local a = "";a..="asd";
-a..="n";
 
+local function hey()
+
+            a..="n";
+end
 print(a);
