@@ -5,7 +5,7 @@ let outputFile = "output.lua" // Where to write output
 
 let option = "m" // Option, minify / beautify
 let renameVariables = true
-let renameGlobals = false
+let renameGlobals = true
 let solveMath = true
 
 const luamin = require("./luamin") // should be in same folder as this script

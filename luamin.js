@@ -1874,6 +1874,7 @@ function AddVariableInfo(ast) {
         } else {
             _var = addGlobalReference(name, setNameFunc)
         }
+        console.log(_var)
 
         let curLocation = markLocation()
         _var.EndLocation = curLocation
@@ -2047,8 +2048,30 @@ function AddVariableInfo(ast) {
     visitor.AssignmentStat = {
         "Post": function(stat) {
             stat.Lhs.forEach((ex) => {
+                if (getLocalVar(currentScope, ex.Token.Source)) {
+                    ex.Variabe = referenceVariable(ex.Token.Source, function(name) {
+                        ex.Token.Source = name
+                    })
+                } else {
+                    ex.Variable = addGlobalReference(ex.Token.Source, function(name) {
+                        ex.Token.Source = name
+                    })
+                }
+
                 if (ex.Variable != null) {
                     ex.Variable.AssignedTo = true
+                }
+            })
+            stat.Rhs.forEach((ex, i) => {
+                if (getLocalVar(currentScope, ex.Token.Source)) {
+                    ex.Variable = referenceVariable(ex.Token.Source, function(name) {
+                        ex.Token.Source = name
+                    })
+                } else {
+                    ex.Variable = addGlobalReference(ex.Token.Source, function(name) {
+                        ex.Token.Source = name
+                        ex.Variable.Name = name
+                    })
                 }
             })
         }
