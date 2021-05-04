@@ -840,7 +840,7 @@ function CreateLuaParser(text) {
             }
 
             let cparenTk = expect("Symbol", ")")
-            let
+            let node
             node = MkNode({
                 "CallType": "ArgCall",
                 "ArgList": argList,
@@ -1266,6 +1266,7 @@ function CreateLuaParser(text) {
                 throw getTokenStartPosition(funcStat.Token_NameChainSeperator[0]) + ": `(` expected."
             }
 
+            let node
             node = MkNode({
                 "Type": "LocalFunctionStat",
                 "FunctionStat": funcStat,
@@ -2062,11 +2063,12 @@ function PrintAst(ast) {
     let printExpr
     let buffer = ''
     function printt(tk) {
-        if (tk.LeadingWhite === null || tk.Source === null) {
+        if (tk.LeadingWhite == null || tk.Source == null) {
             throw `Bad token: tk=${tk} | lwhite=${tk.LeadingWhite} | source=${tk.Source}`
         }
         buffer = `${buffer}${tk.LeadingWhite}${tk.Source}`
     }
+
     printExpr = function(expr) {
         if (expr.Type == "BinopExpr") {
             printExpr(expr.Lhs)
@@ -2310,7 +2312,7 @@ function PrintAst(ast) {
         } else if(stat.Type == "DoStat") {
             printt(stat.Token_Do)
             printStat(stat.Body)
-            //stat.Token_End.LeadingWhite = " "
+
             printt(stat.Token_End)
         } else if(stat.Type == "IfStat") {
             printt(stat.Token_If)
@@ -2764,18 +2766,12 @@ function StripAst(ast) {
     let stripStat
     let stripExpr
     function stript(token) {
-        if (token != null) {
-            token.LeadingWhite = '';
-        }
+        token.LeadingWhite = ''
     }
-
     function joint(tokenA, tokenB) {
-
         stript(tokenB)
-        
-        let lastCh = tokenA.Source.toString().substr(-0,1)
-        let firstCh = tokenB.Source.toString().substr(0,1)
-
+        let lastCh = tokenA.Source.substr(tokenA.Source.length - 1,1)
+        let firstCh = tokenB.Source.substr(0,1)
         if ((lastCh == "-" && firstCh == "-") || (AllIdentChars.includes(lastCh) && AllIdentChars.includes(firstCh))) {
             tokenB.LeadingWhite = ' '
         } else {
@@ -2982,7 +2978,6 @@ function StripAst(ast) {
             }
             stript(stat.FunctionStat.Token_CloseParen)
             bodyjoint(stat.FunctionStat.Token_CloseParen, stat.FunctionStat.Body, stat.FunctionStat.Token_End)
-            stat.FunctionStat.Token_End.Source = stat.FunctionStat.Token_End.Source + ';'
         } else if(stat.Type == "FunctionStat") {
             stript(stat.Token_Function)
             stat.NameChain.forEach((part, index) => {
@@ -3801,7 +3796,7 @@ function Uglify(ast) {
 
         stript(tokenB)
         
-        let lastCh = tokenA.Source.substr(-0,1)
+        let lastCh = tokenA.Source.substr(tokenA.Source.length - 1, 1)
         let firstCh = tokenB.Source.substr(0,1)
 
         if ((lastCh == "-" && firstCh == "-") || (AllIdentChars.includes(lastCh) && AllIdentChars.includes(firstCh))) {
