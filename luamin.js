@@ -1874,7 +1874,6 @@ function AddVariableInfo(ast) {
         } else {
             _var = addGlobalReference(name, setNameFunc)
         }
-        console.log(_var)
 
         let curLocation = markLocation()
         _var.EndLocation = curLocation
@@ -2048,30 +2047,8 @@ function AddVariableInfo(ast) {
     visitor.AssignmentStat = {
         "Post": function(stat) {
             stat.Lhs.forEach((ex) => {
-                if (getLocalVar(currentScope, ex.Token.Source)) {
-                    ex.Variabe = referenceVariable(ex.Token.Source, function(name) {
-                        ex.Token.Source = name
-                    })
-                } else {
-                    ex.Variable = addGlobalReference(ex.Token.Source, function(name) {
-                        ex.Token.Source = name
-                    })
-                }
-
                 if (ex.Variable != null) {
                     ex.Variable.AssignedTo = true
-                }
-            })
-            stat.Rhs.forEach((ex, i) => {
-                if (getLocalVar(currentScope, ex.Token.Source)) {
-                    ex.Variable = referenceVariable(ex.Token.Source, function(name) {
-                        ex.Token.Source = name
-                    })
-                } else {
-                    ex.Variable = addGlobalReference(ex.Token.Source, function(name) {
-                        ex.Token.Source = name
-                        ex.Variable.Name = name
-                    })
                 }
             })
         }
@@ -2787,8 +2764,9 @@ function StripAst(ast) {
     let stripStat
     let stripExpr
     function stript(token) {
-        if (token != null)
+        if (token != null) {
             token.LeadingWhite = '';
+        }
     }
 
     function joint(tokenA, tokenB) {
@@ -3004,6 +2982,7 @@ function StripAst(ast) {
             }
             stript(stat.FunctionStat.Token_CloseParen)
             bodyjoint(stat.FunctionStat.Token_CloseParen, stat.FunctionStat.Body, stat.FunctionStat.Token_End)
+            stat.FunctionStat.Token_End.Source = stat.FunctionStat.Token_End.Source + ';'
         } else if(stat.Type == "FunctionStat") {
             stript(stat.Token_Function)
             stat.NameChain.forEach((part, index) => {
@@ -4897,10 +4876,14 @@ function BeautifyVariables(globalScope, rootScope, renameGlobals) {
             setter(name)
         })
     }
+    
     if (renameGlobals) {
+        let names = {}
         globalScope.forEach((_var) => {
-            if (_var.AssignedTo) {
-                setVarName(_var, `G_${globalNumber}_`)
+            if (_var.AssignedTo && !_var.ChangedName) {
+                names[_var.Name] = names[_var.Name] || `G_${globalNumber}_`
+                _var.ChangedName = true
+                setVarName(_var, names[_var.Name])
                 globalNumber++
             }
         })
@@ -4927,155 +4910,79 @@ function BeautifyVariables(globalScope, rootScope, renameGlobals) {
     modify(rootScope)
 }
 
+let uglyNames = []
+function generateUglyName() {
+    function OwOIfy(str) {
+        return str.split('').map(v=>{
+            let c = Math.round(Math.random())
+            if (c && v.toLowerCase() !== 'w') return v.toUpperCase();
+            return v;
+        }).join('')
 
+    }
+    const vars = ['owo', 'uwu', 'Uwu','uwU', 'Owo', 'owO', 'uWu', 'oWo', 'UwU', 'OwO'] // UGLY
+    function gen() {
+        let a = ""
+        for (let i = 0; i<=20; i++) {
+            let num = Math.floor(Math.random() * vars.length)
+            a+= num !== 3? OwOIfy(vars[num]) : vars[num]
+        }
+        return a
+    }
+
+    let gamer = gen()
+    while (uglyNames.includes(gamer))
+        gamer = gen();
+
+    uglyNames.push(gamer)
+
+    return gamer
+}
 function UglifyVariables(globalScope, rootScope, renameGlobals) {
-    let globalUsedNames = []
-    for (var [kw, _] of Object.entries(Keywords)) {
-        globalUsedNames[kw] = true
-    }
-
-    let allVariables = []
-    let allLocalVariables = []
-    
-    
-    globalScope.forEach((_var) => {
-        if (_var.AssignedTo && renameGlobals) {
-            allVariables.push(_var)
-        } else {
-            globalUsedNames[_var.Name] = true
+    let externalGlobals = []
+     globalScope.forEach((_var) => {
+        if (!_var.AssignedTo || !renameGlobals) {
+            externalGlobals[_var.Name] = true
         }
     })
 
-    function addFrom(scope) {
+    let localNumber = 1
+    let globalNumber = 1
+    function setVarName(_var, name) {
+        _var.Name = name
+        _var.RenameList.forEach((setter) => {
+            setter(name)
+        })
+    }
+    if (renameGlobals) {
+        globalScope.forEach((_var) => {
+            if (_var.AssignedTo) {
+                setVarName(_var, `G_${globalNumber}_`)
+                globalNumber++
+            }
+        })
+    }
+
+    function modify(scope) {
         scope.VariableList.forEach((_var) => {
-            allVariables.push(_var)
-            allLocalVariables.push(_var)
-        })
-        scope.ChildScopeList.forEach((childScope) => {
-            addFrom(childScope)
-        })
-    }
-    addFrom(rootScope)
-
-    allVariables.forEach((_var) => {
-        _var.UsedNameArray = []
-    })
-
-    allVariables.sort((a, b) => a - b)
-
-    let nextValidNameIndex = 0
-    let varNamesLazy = []
-
-    let uglyNames = []
-    function generateUglyName(i) {
-        if (uglyNames[i]) {
-            return uglyNames[i]
-        }
-        function OwOIfy(str) {
-
-            return str.split('').map(v=>{
-
-                let c = Math.round(Math.random())
-                if (c && v.toLowerCase() !== 'w') return v.toUpperCase();
-                return v;
-
-            }).join('')
-
-        }
-        const vars = ['owo', 'uwu', 'Uwu','uwU', 'Owo', 'owO', 'uWu', 'oWo', 'UwU', 'OwO'] // UGLY
-
-
-        function gen() {
-            let a = ""
-            for (let i = 0; i<=20; i++) {
-                let num = Math.floor(Math.random() * vars.length)
-                a+= num !== 3? OwOIfy(vars[num]) : vars[num]
+            let name = generateUglyName()//`L_${localNumber}_`
+            
+            if (_var.Info.Type == "Argument") {
+                //name = `${name}arg${_var.Info.Index}`
+            } else if(_var.Info.Type == "LocalFunction") {
+               // name = `${name}func`
+            } else if(_var.Info.Type == "ForRange") {
+                //name = `${name}forvar${_var.Info.Index}`
             }
-            return a
-        }
-
-        let gamer = gen()
-        while (uglyNames.includes(gamer))
-            gamer = gen();
-
-        uglyNames.push(gamer)
-
-        return gamer
+            setVarName(_var, name)
+            localNumber++
+        })
+        scope.ChildScopeList.forEach((scope1) => {
+            modify(scope1)
+        })
     }
-
-    function varIndexToValidName(i) {
-        let name = varNamesLazy[i]
-        if (name == null) {
-            name = generateUglyName(nextValidNameIndex)
-            nextValidNameIndex++
-            while (globalUsedNames[name]) {
-                name = generateUglyName(nextValidNameIndex)
-                nextValidNameIndex++  
-            }
-            varNamesLazy[i] = name
-        }
-        return name
-    }
-
-    allVariables.forEach((_var, _) => {
-        _var.Renamed = true
-        
-        let i = 0
-        while (_var.UsedNameArray[i]) {
-            i++
-        }
-
-        _var.Rename(varIndexToValidName(i))
-
-        if (_var.Scope) {
-
-            allVariables.forEach((otherVar) => {
-                if (!otherVar.Renamed) {
-                    if (!otherVar.Scope || otherVar.Scope.Depth < _var.Scope.Depth) {
-                        otherVar.ReferenceLocationList.some((refAt) => {
-                            if (refAt >= _var.BeginLocation && refAt <= _var.ScopeEndLocation) {
-                                otherVar.UsedNameArray[i] = true
-                                return true
-                            }
-                            return false
-                        })
-                    } else if(otherVar.Scope.Depth > _var.Scope.Depth) {
-                        _var.ReferenceLocationList.some((refAt) => {
-                            if (refAt >= otherVar.BeginLocation && refAt <= otherVar.ScopeEndLocation) {
-                                otherVar.UsedNameArray[i] = true
-                                return true
-                            }
-                            return false
-                        })
-                    } else {
-                        if (_var.BeginLocation < otherVar.EndLocation && _var.EndLocation > otherVar.BeginLocation) {
-                           otherVar.UsedNameArray[i] = true
-                        }
-                    }
-                }
-            })
-        } else {
-            allVariables.forEach((otherVar) => {
-                if (!otherVar.Renamed) {
-                    if (otherVar.Type == "Global") {
-                        otherVar.UsedNameArray[i] = true
-                    } else if(otherVar.Type == "Local") {
-
-                        _var.ReferenceLocationList.some((refAt) => {
-                            if (refAt >= otherVar.BeginLocation && refAt <= otherVar.ScopeEndLocation) {
-                                otherVar.UsedNameArray[i] = true
-                                return true
-                            }
-
-                            return false
-                        })
-                    } else {
-                        throw "Unreachable"
-                    }
-                }
-            })
-        }
-    })
+    
+    modify(rootScope)
 }
 
 

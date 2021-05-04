@@ -1,7 +1,5 @@
-local a = "";a..="asd";
+hey = ""
+hey = "1"
 
-local function hey()
-
-            a..="n";
-end
-print(a);
+local a = 1
+a = 2
