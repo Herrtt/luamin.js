@@ -320,7 +320,7 @@ function CreateLuaTokenStream(text) {
             if (src.substr(0,2) == "0x") {
                 src = parseInt(src, 16)
             } else if(src.substr(0,2) == "0b") {
-                src = parseInt(src, 2)
+                src = parseInt(src.substr(2), 2)
             }
         }
         let tk = {
