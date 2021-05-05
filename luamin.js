@@ -129,6 +129,10 @@ let HexDigits = [
     'A','B','C','D','E','F',
 ]
 
+let BinaryDigits = [
+    '0', '1' // lol
+]
+
 let Symbols = [
     '+', '-', '*', ')', ';',  
     '/', '^', '%', '#',
@@ -315,6 +319,8 @@ function CreateLuaTokenStream(text) {
         if (type == "Number") {
             if (src.substr(0,2) == "0x") {
                 src = parseInt(src, 16)
+            } else if(src.substr(0,2) == "0b") {
+                src = parseInt(src, 2)
             }
         }
         let tk = {
@@ -427,6 +433,12 @@ function CreateLuaTokenStream(text) {
                 p++
                 // Hex number
                 while (HexDigits.includes(look())) {
+                    p++
+                }
+            } else if (c1 == '0' && look() == 'b') {
+                p++
+                // Binary number
+                while (BinaryDigits.includes(look())) {
                     p++
                 }
             } else {
@@ -710,10 +722,6 @@ function CreateLuaParser(text) {
                 // Value
         
                 let value = expr(locals, upvals)
-                //console.log(value)
-                
-                //if (lastIndex)
-
                 entries.push({
                     "EntryType": "Value",
                     "Value": value,
@@ -5027,7 +5035,7 @@ luaminp.Beautify = function(scr, options) {
 }
 
 luaminp.Uglify = function(src1, options) {
-    console.log("Sorry, but this is incredibly slow for large scripts.")
+    print("Sorry, but this is incredibly slow for large scripts.")
 
     let ast1 = CreateLuaParser(src1)
     let [glb1] = AddVariableInfo(ast1)
