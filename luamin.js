@@ -2386,11 +2386,10 @@ function FormatAst(ast) {
         }
     }
 
-    applyIndent({"LeadingWhite": "\nlol\t\n\t\t", "Source":"ok"})
-
     function indent() {
         currentIndent++
     }
+
     function undent() {
         currentIndent--
         assert(currentIndent >= 0, "Undented too far")
@@ -2768,12 +2767,12 @@ function StripAst(ast) {
     function stript(token) {
         token.LeadingWhite = ''
     }
-    function joint(tokenA, tokenB) {
+    function joint(tokenA, tokenB, shit = false) {
         stript(tokenB)
         let lastCh = tokenA.Source.substr(tokenA.Source.length - 1,1)
         let firstCh = tokenB.Source.substr(0,1)
-        if ((lastCh == "-" && firstCh == "-") || (AllIdentChars.includes(lastCh) && AllIdentChars.includes(firstCh))) {
-            tokenB.LeadingWhite = ' '
+        if ((lastCh == "-" && firstCh == "-") || (AllIdentChars.includes(lastCh) && AllIdentChars.includes(firstCh)) || (shit && lastCh == ')' && firstCh == '(')) {
+            tokenB.LeadingWhite = shit ? ';' : ' '
         } else {
             tokenB.LeadingWhite = ""
         }
@@ -2902,7 +2901,6 @@ function StripAst(ast) {
                 
                 stripStat(chStat)
                 stript(chStat.GetFirstToken())
-
                 let lastChStat = stat.StatementList[i-1]
                 if (lastChStat != null) {
 
@@ -2913,7 +2911,7 @@ function StripAst(ast) {
                     }
 
                     if (!stat.SemicolonList[i-1]) {
-                        joint(lastChStat.GetLastToken(), chStat.GetFirstToken())
+                        joint(lastChStat.GetLastToken(), chStat.GetFirstToken(), true)
                     }
                 }
             }

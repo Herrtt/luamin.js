@@ -5,8 +5,8 @@ let outputFile = "output.lua" // Where to write output
 
 let option = "b" // Option, minify / beautify
 let renameVariables = true
-let renameGlobals = false
-let solveMath = false
+let renameGlobals = true
+let solveMath = true
 
 const luamin = require("./luamin") // should be in same folder as this script
 const fs = require("fs") // to read files, to install: `npm i fs`, https://www.npmjs.com/package/fs
