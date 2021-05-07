@@ -630,9 +630,6 @@ function CreateLuaParser(text) {
     }
 
     function prefixexpr(locals, upvals) {
-        if (!locals) {
-            assert(false, "no locals")
-        }
         let tk = peek()
         if (tk.Source == '(') {
             let oparenTk = get()
@@ -658,6 +655,7 @@ function CreateLuaParser(text) {
             })
 
             if (locals[node.Token.Source] != null) {
+                console.log(locals[node.Token.Source])
                 locals[node.Token.Source].Tokens.push(node.Token)
                 locals[node.Token.Source].UseCountIncrease()
             } else if(upvals[node.Token.Source] != null) {
@@ -1407,8 +1405,8 @@ function CreateLuaParser(text) {
         let semicolons = []
         let isLast = false
 
-        let locals = []
-        let upvals = []
+        let locals = {}
+        let upvals = {}
         if (b != null) {
             for (let [i, v] of Object.entries(b)) {
                 upvals[i] = v
@@ -1430,6 +1428,7 @@ function CreateLuaParser(text) {
             }
             thing = peek()
 
+            console.log(locals, upvals, thing)
             let [isLast, stat] = statement(locals, upvals)
             if (stat) {
                 statements.push(stat);
