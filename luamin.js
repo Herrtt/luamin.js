@@ -655,7 +655,6 @@ function CreateLuaParser(text) {
             })
 
             if (locals[node.Token.Source] != null) {
-                console.log(locals[node.Token.Source])
                 locals[node.Token.Source].Tokens.push(node.Token)
                 locals[node.Token.Source].UseCountIncrease()
             } else if(upvals[node.Token.Source] != null) {
@@ -1427,8 +1426,6 @@ function CreateLuaParser(text) {
                 print(`INFINITE LOOP POSSIBLE ON STATEMENT ${thing.Source} :`,thing)
             }
             thing = peek()
-
-            console.log(locals, upvals, thing)
             let [isLast, stat] = statement(locals, upvals)
             if (stat) {
                 statements.push(stat);
