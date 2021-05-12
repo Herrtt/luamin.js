@@ -316,10 +316,13 @@ function CreateLuaTokenStream(text) {
         tokens++
 
         let src = text.substr(tokenStart, (p - tokenStart))
+        let ntype = null
         if (type == "Number") {
             if (src.substr(0,2) == "0x") {
+                ntype = 'hex'
                 src = parseInt(src, 16)
             } else if(src.substr(0,2) == "0b") {
+                ntype = 'bin'
                 src = parseInt(src.substr(2), 2)
             }
         }
@@ -327,6 +330,9 @@ function CreateLuaTokenStream(text) {
             'Type': type,
             'LeadingWhite': text.substr(whiteStart, (tokenStart - whiteStart)),
             'Source': src
+        }
+        if (ntype !== null) {
+            tk.NType = ntype
         }
         tokenBuffer.push(tk)
 
@@ -2773,8 +2779,10 @@ function StripAst(ast) {
     }
     function joint(tokenA, tokenB, shit = false) {
         stript(tokenB)
-        let lastCh = tokenA.Source.substr(tokenA.Source.length - 1,1)
-        let firstCh = tokenB.Source.substr(0,1)
+
+        let lastCh = (typeof tokenA.Source == 'string' ? tokenA.Source : tokenA.Source.toString()).substr(tokenA.Source.length - 1,1)
+        let firstCh = (typeof tokenB.Source == 'string' ? tokenB.Source : tokenB.Source.toString()).substr(0,1)
+        
         if ((lastCh == "-" && firstCh == "-") || (AllIdentChars.includes(lastCh) && AllIdentChars.includes(firstCh)) || (shit && lastCh == ')' && firstCh == '(')) {
             tokenB.LeadingWhite = shit ? ';' : ' '
         } else {
@@ -3798,8 +3806,8 @@ function Uglify(ast) {
 
         stript(tokenB)
         
-        let lastCh = tokenA.Source.substr(tokenA.Source.length - 1, 1)
-        let firstCh = tokenB.Source.substr(0,1)
+        let lastCh = (typeof tokenA.Source == 'string' ? tokenA.Source : tokenA.Source.toString()).substr(tokenA.Source.length - 1, 1)
+        let firstCh = (typeof tokenB.Source == 'string' ? tokenB.Source : tokenB.Source.toString()).substr(0,1)
 
         if ((lastCh == "-" && firstCh == "-") || (AllIdentChars.includes(lastCh) && AllIdentChars.includes(firstCh))) {
             tokenB.LeadingWhite = ' '
