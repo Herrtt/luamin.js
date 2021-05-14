@@ -212,6 +212,35 @@ let BinaryPriority = {
 let UnaryPriority = 8
 // Eof, Ident, KeyWord, Number, String, Symbol
 
+let uglyNames = []
+function generateUglyName(l = 20) {
+    function OwOIfy(str) {
+        return str.split('').map(v=>{
+            let c = Math.round(Math.random())
+            if (c && v.toLowerCase() !== 'w') return v.toUpperCase();
+            return v;
+        }).join('')
+
+    }
+    const vars = ['owo', 'uwu', 'Uwu','uwU', 'Owo', 'owO', 'uWu', 'oWo', 'UwU', 'OwO'] // UGLY
+    function gen() {
+        let a = ""
+        for (let i = 0; i<=l; i++) {
+            let num = Math.floor(Math.random() * vars.length)
+            a+= num !== 3? OwOIfy(vars[num]) : vars[num]
+        }
+        return a
+    }
+
+    let gamer = gen()
+    while (uglyNames.includes(gamer))
+        gamer = gen();
+
+    uglyNames.push(gamer)
+
+    return gamer
+}
+
 
 function CreateLuaTokenStream(text) {
     // Tracking for the current position in the buffer, and
@@ -2500,7 +2529,7 @@ function FormatAst(ast) {
             } else {
                 indent()
 
-                let die = 15
+                let die = 100
                 expr.EntryList.forEach((entry, index) => {
                     if (entry.EntryType == "Field") {
                         if (expr.EntryList.length > die) {
@@ -3767,6 +3796,7 @@ function genHexString(len) {
 function Uglify(ast) {
     let uglifyStat
     let uglifyExpr
+    let constTokens = []
     function stript(token) {
         if (token != null)
             token.LeadingWhite = '';
@@ -3953,7 +3983,7 @@ function Uglify(ast) {
         }
     }
 
-    function generateRandomShit(ignore) {
+    function generateRandomShit(ignore, value = 10) {
         let num = ignore ? 1000 : Math.floor(Math.random() * 100)
 
         let str // ${Math.floor(Math.random() * 999)}
@@ -3962,7 +3992,7 @@ function Uglify(ast) {
         } else if(num == 1 && !ignore) {
             str = `(function(a,b,c)
                 return ${generateRandomShit(true)} 
-                    and a or a == nil or b * a + b, c end)() 
+                    and a or a == nil or b * a + b, c end)('${genHexString(Math.floor(Math.random() * 12))}') 
                     or ${randomShit()} 
                     or ${rannum()} * ${randomShit()}`
         } else {
@@ -4056,9 +4086,10 @@ function Uglify(ast) {
             local a = {${tableLol}}
             return #a
         `
-        // Sorry, creating a new parser is poop and slow, but the easy way
+        // Sorry, creating a new parser is slow, but the easy way
         let body = CreateLuaParser(scr)
 
+        
         let ranargs = [
                 {Type: "Ident", Source: "a", LeadingWhite: " "},
                 {Type: "Ident", Source: "b", LeadingWhite: " "}, 
@@ -4213,6 +4244,7 @@ function Uglify(ast) {
                     case ("BooleanLiteral"):
                         expr.Token.Source += " "
                     case ("StringLiteral"):
+                        constTokens.push(expr)
                     case ("VargLiteral"): {
                         stript(expr.Token)
                     }
@@ -4223,18 +4255,18 @@ function Uglify(ast) {
                 return
             }
             
-
             switch(expr.Type) {
                 case ("NumberLiteral"): {
                     let value = isFinite(`0${expr.Token.Source}`) && parseFloat(`0${expr.Token.Source}`)
 
-                    let howtofuckup = Math.floor(Math.random() * 25)
+                    let howtofuckup = Math.floor(Math.random() * 10)
                     if (value !== null && typeof(value) == "number" && isFinite(value)) {
                         if (howtofuckup === 0) { // Slow as fuck
                             // #String
                             let newexpr = turnNumberToFString(value)
                             replace(expr, newexpr)
-                            break// uglifyExpr(expr, true) // Just fucks me up
+                            uglifyExpr(expr, true) // Just fucks me up
+                            break
                         } else if(howtofuckup == 1) {
                             // Math shit
                             
@@ -4254,10 +4286,11 @@ function Uglify(ast) {
                             // #Table
                             let newexpr = turnNumberToFTable(value, expr.Token.Source)
                             replace(expr, newexpr)
-                            break// uglifyExpr(expr, true) // Just fucks me up
+                            break
                         } else {
                             // IDK
                             stript(expr.Token);
+                            //uglifyExpr(expr, true)
                             break
                         }
                     }
@@ -4308,7 +4341,7 @@ function Uglify(ast) {
                             let local = CreateLuaParser(`local string = string`).StatementList[0]
                             ast.StatementList = [local].concat(ast.StatementList)
                         }
-                        uglifyExpr(callexpr.Lhs)
+                        uglifyExpr(callexpr.Lhs, true)
                         replace(expr, callexpr)
                         break
                     } else {
@@ -4650,6 +4683,60 @@ function Uglify(ast) {
     }
 
     uglifyStat(ast)
+
+    let taken = {
+        NumberLiteral: {},
+        NilLiteral: {},
+        BooleanLiteral: {},
+        StringLiteral: {}
+    }
+    let consttable = ''
+    let A = 0
+    let consttableName = '__' + generateUglyName(25)
+    constTokens.forEach((v, i) => {
+        if (!taken[v.Type]) {
+            return
+        }
+
+        let ranName
+        if (taken[v.Type][v.Token.Source]) {
+            ranName = taken[v.Type][v.Token.Source]
+        } else {
+            ranName = `_${generateUglyName(10)}`
+            consttable += (A++ == 0 ? '' : ', ')
+                + `${ranName} = ${v.Token.Source}`
+
+            taken[v.Type][v.Token.Source] = ranName
+        }
+        
+
+        replace(v, cnode({
+            Type: "FieldExpr",
+            Base: cnode({
+                Type: 'VariableExpr',
+                Token: {
+                  Type: 'Ident',
+                  LeadingWhite: ' ',
+                  Source: consttableName,
+                }
+            }),
+            Field: {
+                Type: 'Ident',
+                LeadingWhite: '',
+                Source: ranName
+            },
+            Token_Dot: {Type: 'Symbol', LeadingWhite: '', Source: '.'}
+        }))
+
+
+    })
+    let top = CreateLuaParser(`
+    local ${consttableName} = {${consttable}}
+    `)
+
+    for (let i = 0; i < top.StatementList.length; i++) {
+        ast.StatementList.unshift(top.StatementList[i])
+    }
 }
 
 
@@ -4915,34 +5002,6 @@ function BeautifyVariables(globalScope, rootScope, renameGlobals) {
     modify(rootScope)
 }
 
-let uglyNames = []
-function generateUglyName() {
-    function OwOIfy(str) {
-        return str.split('').map(v=>{
-            let c = Math.round(Math.random())
-            if (c && v.toLowerCase() !== 'w') return v.toUpperCase();
-            return v;
-        }).join('')
-
-    }
-    const vars = ['owo', 'uwu', 'Uwu','uwU', 'Owo', 'owO', 'uWu', 'oWo', 'UwU', 'OwO'] // UGLY
-    function gen() {
-        let a = ""
-        for (let i = 0; i<=20; i++) {
-            let num = Math.floor(Math.random() * vars.length)
-            a+= num !== 3? OwOIfy(vars[num]) : vars[num]
-        }
-        return a
-    }
-
-    let gamer = gen()
-    while (uglyNames.includes(gamer))
-        gamer = gen();
-
-    uglyNames.push(gamer)
-
-    return gamer
-}
 function UglifyVariables(globalScope, rootScope, renameGlobals) {
     let externalGlobals = []
      globalScope.forEach((_var) => {
