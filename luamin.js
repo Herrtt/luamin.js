@@ -535,7 +535,7 @@ function CreateLuaTokenStream(text) {
         } else if(Symbols.includes(c1)) {
             token("Symbol")
         } else {
-            throw(`Bad symbol \`${c1}\` in source.`)
+            throw(`Bad symbol \`${c1}\` in source. ${p}`)
         }
     }
 
@@ -1073,7 +1073,7 @@ function CreateLuaParser(text) {
             assert(curNode, "nil sipleexpr")
         }  
     
-        while (isBinop() && BinaryPriority[peek().Source][0] > limit) {
+        while (isBinop() && BinaryPriority[peek().Source] != undefined && BinaryPriority[peek().Source][0] > limit) {
             let opTk = get()
             let rhs = subexpr(BinaryPriority[opTk.Source][1], locals, upvals)
             assert(rhs, "RhsNeeded")
@@ -3256,7 +3256,16 @@ function SolveMath(ast) { // This is some ugly code sorry for whoever is seeing 
         let start = a.substr(0,1)
         let ret
         if (start == `"` || start == `'`) ret = a.substr(1,a.length-2);
-        if (start == `[`) ret =  a.substr(2,a.length-4);
+        if (start == `[`) {
+            let count = 0;
+            let p = 1;
+            while (a.substr(p, 1) == '=') {
+                count++;
+                p++;
+            }
+
+            ret = a.substr(2 + count, a.length - 4 - count - 2);
+        }
         if (ret == null) return '';
 
         let newret = ''
@@ -3654,7 +3663,7 @@ function SolveMath(ast) { // This is some ugly code sorry for whoever is seeing 
 
             if (stat.FunctionStat.NameChain.length === 1) {
                 if (stat.FunctionStat.NameChain[0].UseCount === 0) {
-                    return stat.Remove()
+                    //return stat.Remove()
                 }
             }
 
@@ -4259,13 +4268,13 @@ function Uglify(ast) {
                 case ("NumberLiteral"): {
                     let value = isFinite(`0${expr.Token.Source}`) && parseFloat(`0${expr.Token.Source}`)
 
-                    let howtofuckup = Math.floor(Math.random() * 10)
+                    let howtofuckup = Math.floor(Math.random() * 4)
                     if (value !== null && typeof(value) == "number" && isFinite(value)) {
                         if (howtofuckup === 0) { // Slow as fuck
                             // #String
                             let newexpr = turnNumberToFString(value)
                             replace(expr, newexpr)
-                            uglifyExpr(expr, true) // Just fucks me up
+                            //uglifyExpr(expr, true) // Just fucks me up
                             break
                         } else if(howtofuckup == 1) {
                             // Math shit
