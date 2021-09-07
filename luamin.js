@@ -1,6 +1,6 @@
 /*
-    Stravant thing in js
-    Written by Herrtt (originally by Stravant)
+    PERTH thing in js
+    Written by Perthtt (by Perth)
 */ 
 
 
