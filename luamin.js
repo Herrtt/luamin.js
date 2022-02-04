@@ -286,7 +286,7 @@ function CreateLuaTokenStream(text) {
             }
         }
         let i_;
-        for (i_ = 0; i_ < tokenBuffer; i_++) {
+        for (i_ = 0; i_ < tokenBuffer.length; i_++) {
             let token = tokenBuffer[i_]
             print(`${token.Type}<${token.Source}>`)
         }
@@ -1785,6 +1785,8 @@ function AddVariableInfo(ast) {
             "ChildScopeList": [],
             "VariableList": [],
             "BeginLocation": markLocation(),
+            "Depth": null,
+            "GetVar": null
         }
         if (currentScope.ParentScope) {
             currentScope.Depth = currentScope.ParentScope.Depth + 1
@@ -3147,7 +3149,7 @@ function StripAst(ast) {
             joint(stat.Lhs.GetLastToken(), stat.Token_Compound)
             joint(stat.Token_Compound, stat.Rhs.GetFirstToken())
 
-            lastBody = stat.Body
+            //lastBody = stat.Body
         } else if(stat.Type == "AssignmentStat") {
             stat.Lhs.forEach((ex, index) => {
                 stripExpr(ex)
@@ -3572,7 +3574,15 @@ function SolveMath(ast) { // This is some ugly code sorry for whoever is seeing 
                 if (token.Type == "String") {
                     token.Source = token.Source.replace(/\\\d+/gi, (got) => {
                         let num = parseFloat(got.substr(1,got.length-1))
-                        if (num && isFinite(num) && ((num >= 97 && num <= 122) || (num >= 65 && num <= 90))) {
+                        if (num && isFinite(num) && (
+                            (num >= 97 && num <= 122)
+                            || (num >= 65 && num <= 90)
+                            || (num >= 33 && num <= 47)
+                            || (num >= 58 && num <= 64)
+                            || (num >= 91 && num <= 96)
+                            || (num >= 123 && num <= 126)
+                            ) && num !== 34 && num !== 39 && num !== 91
+                        )  {
                           return String.fromCharCode(num)
                         }
                         
@@ -4078,7 +4088,7 @@ function Uglify(ast) {
 
         let leftover = value - Math.min(value, maxtablelength) // Set max table length to 100
 
-        if (parseFloat(dec) && isFinite(dec)) {
+        if (parseFloat(dec) && isFinite(parseFloat(dec))) {
             leftover += (dec / 10)
         }
     
