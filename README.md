@@ -2,7 +2,7 @@
 Luamin is a Lua Beautifier, Minifier & Uglifier, written in pure JavaScript.
 
 
-```
+```js
 const luamin = require('lua-format')
 
 const code = `print("hello world!")`
@@ -23,10 +23,10 @@ $ npm install lua-format
 ```
 
 ## Feautures
-    * Prettifier
-    * Minifier
-    * Simplifier (SolveMath)
-    * Uglifier
+  * Prettifier
+  * Minifier
+  * Simplifier (SolveMath)
+  * Uglifier
 
 ## Quick Start
 
