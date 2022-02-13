@@ -1,39 +1,57 @@
-# luamin.js
-Lua Beautifier & Minfier, written in JavaScript.
-Originally written by Stravant, rewritten by Herrtt#3868
+# luamin.js (a.k.a. lua-format)
+Luamin is a Lua Beautifier, Minifier & Uglifier, written in pure JavaScript.
 
-###### Required to use (cli version)
-> node.js (https://nodejs.org/en/download/)
-
-###### How to use?
-
-#### In Command Line
-
-Download and extract this project
-Paste your script in *input.lua*
-& Run in cmd or open the !run.bat
-```
-node main.js
-```
-
-Voila, your script has appeared in *output.lua*
-
-#### As a module
-
-Download **luamin.js** and paste it in desired folder.
+  [![NPM Version][npm-image]][npm-url]
+  [![NPM Downloads][downloads-image]][downloads-url]
+  [![Linux Build][ci-image]][ci-url]
+  [![Windows Build][appveyor-image]][appveyor-url]
+  [![Test Coverage][coveralls-image]][coveralls-url]
 
 ```
-// Everything should explain itself.
-const src = `print("Hello World!")`
+const luamin = require('lua-format')
 
-let options = {
-  RenameVariables: true, // Should it change the variable names? (L_1_, L_2_, ...)
-  RenameGlobals: false, // Not safe, rename global variables? (G_1_, G_2_, ...) (only works if RenameVariables is set to true)
-  SolveMath: true, // Solve math? (local a = 1 + 1 => local a = 2, etc.)
+const code = `print("hello world!")`
+const source = luamin.Beautify(code, {
+  RenameVariables: true,
+  RenameGlobals: false,
+  SolveMath: true
+})
+```
+
+## Installation
+Luamin is a [Node.js](https://nodejs.org/en/) module installed through [npm](https://www.npmjs.com/).
+To start using Luamin, [download and install Node.js](https://nodejs.org/en/download/).
+
+Installation is done using `npm install` command:
+```bash
+$ npm install lua-format
+```
+
+## Feautures
+    * Prettifier
+    * Minifier
+    * Simplifier (SolveMath)
+    * Uglifier
+
+## Quick Start
+
+```js
+const luamin = require('lua-format')
+
+const Code = `print("hello world!")`
+const Settings = {
+  RenameVariables: true,
+  RenameGlobals: false,
+  SolveMath: true
 }
 
-const luamin = require("./luamin") // Require the module
-
-const beautified_src = luamin.Beautify(src, options)
-const minified_src = luamin.Minify(src, options)
+const Beautified = luamin.Beautify(Code, Settings)
+const Minified = luamin.Beautify(Code, Settings)
+const Uglified = luamin.Beautify(Code, Settings)
 ```
+
+## License
+
+  [ISC](LICENSE)
+
+æ
