@@ -1,5 +1,0 @@
-real
-true
-print
-676
-123

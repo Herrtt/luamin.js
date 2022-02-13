@@ -1,16 +1,14 @@
 /*
-    Stravant thing in js
-    Written by Herrtt (originally by Stravant)
+    discord.gg/boronide
+
+
+    Luamin.js | beautify, minify or uglify your Lua scripts!
+
 */ 
 
 
-// I copied some comments
-// no, it was not worth it
-// please leave me alone
-// I tried to copy+paste all comments, but no. I got bored.
-// Be happy.
 
-
+// This project is old, stop dming me about bad coding practice. Thanks.
 
 function shuffle(a) {
     for (let i = a.length - 1; i > 0; i--) {
