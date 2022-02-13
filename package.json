@@ -1,6 +1,6 @@
 {
   "name": "luamin",
-  "version": "1.0.0",
+  "version": "1.2.1",
   "description": "Lua Beautifier & Minifier, written in JavaScript.\r Originally written by Stravant, rewritten by Herrtt#3868",
   "main": "index.js",
   "scripts": {
@@ -11,8 +11,17 @@
     "type": "git",
     "url": "git+https://github.com/Herrtt/luamin.js.git"
   },
-  "keywords": [],
-  "author": "",
+  "keywords": [
+    "luamin",
+    "lua-format",
+    "prettifier",
+    "beautifier",
+    "uglifier",
+    "minfier",
+    "lua",
+    "formatter"
+  ],
+  "author": "Herrtt",
   "license": "ISC",
   "bugs": {
     "url": "https://github.com/Herrtt/luamin.js/issues"
