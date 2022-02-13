@@ -1,0 +1,23 @@
+{
+  "name": "lua-format",
+  "version": "1.0.0",
+  "description": "Lua Beautifier & Minifier, written in pure JavaScript\r",
+  "main": "main.js",
+  "scripts": {
+    "start": "node ./main.js",
+    "beautify": "node ./beautify.js",
+    "minify": "node ./minify.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Herrtt/luamin.js.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/Herrtt/luamin.js/issues"
+  },
+  "homepage": "https://github.com/Herrtt/luamin.js#readme"
+}
