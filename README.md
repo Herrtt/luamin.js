@@ -1,11 +1,6 @@
 # luamin.js (a.k.a. lua-format)
 Luamin is a Lua Beautifier, Minifier & Uglifier, written in pure JavaScript.
 
-  [![NPM Version][npm-image]][npm-url]
-  [![NPM Downloads][downloads-image]][downloads-url]
-  [![Linux Build][ci-image]][ci-url]
-  [![Windows Build][appveyor-image]][appveyor-url]
-  [![Test Coverage][coveralls-image]][coveralls-url]
 
 ```
 const luamin = require('lua-format')
@@ -53,5 +48,3 @@ const Uglified = luamin.Beautify(Code, Settings)
 ## License
 
   [ISC](LICENSE)
-
-æ
