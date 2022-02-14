@@ -14,7 +14,7 @@ fs.readFile(`${inputFile}`, "utf8", (err, src) => {
     fs.writeFile(outputFile, luamin.Beautify(src, {
         RenameVariables: true,
         RenameGlobals: false,
-        SolveMath: false,
+        SolveMath: true,
     }), (err) => {
         if (err) throw err;
         console.log(`saved to ${outputFile}`)

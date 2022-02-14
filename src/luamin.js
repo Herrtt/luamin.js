@@ -18,6 +18,20 @@ function shuffle(a) {
     return a;
 }
 
+function hashString(key) {
+    var hash = 0, i = key.length;
+
+    while (i--) {
+        hash += key.charCodeAt(i);
+        hash += (hash << 10);
+        hash ^= (hash >> 6);
+    }
+    hash += (hash << 3);
+    hash ^= (hash >> 11);
+    hash += (hash << 15);
+    return hash;
+}
+
 const print = console.log
 const error = console.error
 const assert = function(a,b) {
@@ -137,7 +151,7 @@ let Symbols = [
     '+', '-', '*', ')', ';',  
     '/', '^', '%', '#',
     ',', '{', '}', ':',
-    '[', ']', '(','.',
+    '[', ']', '(','.', '`'
 ]
 
 let EqualSymbols = [
@@ -450,6 +464,23 @@ function CreateLuaTokenStream(text) {
                 }
             }
             token('String')
+        } else if(c1 == '`') {
+            // Hash string
+            while (true) {
+                let c2 = get()
+                if (c2 == '\\') {
+                    let c3 = get()
+                    let esc = CharacterForEscape[c3]
+                    if (esc == null) {
+                        throw (`Invalid Escape Sequence \`${c3}\`.`)
+                    }
+                } else if(c2 == c1) {
+                    break
+                } else if(c2 == "") {
+                    throw ("Unfinished string!")
+                }
+            }
+            token('Hash')
         } else if(AllIdentStartChars.includes(c1)) {
             // Ident or keyword
             while (AllIdentChars.includes(look())) {

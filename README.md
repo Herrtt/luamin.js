@@ -41,8 +41,8 @@ const Settings = {
 }
 
 const Beautified = luamin.Beautify(Code, Settings)
-const Minified = luamin.Beautify(Code, Settings)
-const Uglified = luamin.Beautify(Code, Settings)
+const Minified = luamin.Minify(Code, Settings)
+const Uglified = luamin.Uglify(Code, Settings)
 ```
 
 ## License

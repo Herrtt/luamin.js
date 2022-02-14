@@ -1,5 +1,5 @@
 {
-  "name": "luamin",
+  "name": "lua-format",
   "version": "1.2.1",
   "description": "Lua Beautifier & Minifier, written in JavaScript.\r Originally written by Stravant, rewritten by Herrtt#3868",
   "main": "index.js",
