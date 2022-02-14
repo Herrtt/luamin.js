@@ -1,3 +1,5 @@
+![luamin-logo](https://github.com/Herrtt/luamin.js/blob/master/img/luamin_logo.png?raw=true)
+
 # luamin.js (a.k.a. lua-format)
 Luamin is a Lua Beautifier, Minifier & Uglifier, written in pure JavaScript.
 
