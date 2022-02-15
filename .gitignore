@@ -2,3 +2,10 @@ input.lua
 output.lua
 .vscode
 .gitignore
+src/input
+src/output
+./src/input.lua
+./src/output.lua
+src/input.lua
+src/output.lua
+.gitignore
