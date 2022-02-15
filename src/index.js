@@ -1,2 +1,5 @@
+const luamin = require('./luamin')
 
-exports.beautify = () => console.log("AYO")
+exports.Beautify = luamin.Beautify
+exports.Minify = luamin.Minify
+exports.Uglify = luamin.Uglify

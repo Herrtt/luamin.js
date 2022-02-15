@@ -49,8 +49,16 @@ const Uglified = luamin.Uglify(Code, Settings)
 
 ## Example output
 
+input:
 ```lua
+local IiIiiIi = 0; IiiiIiI = 'hi' .. ' mom'; iIIIiI = 5 + 2;
+```
 
+output:
+```lua
+local L_1_ = 0;
+G_1_ = "hi mom";
+G_2_ = 7;
 ```
 
 ## License
