@@ -2,7 +2,7 @@
 
 # luamin.js (a.k.a. lua-format)
 Luamin is a Lua Beautifier, Minifier & Uglifier, written in pure JavaScript.
-
+Supports Lua 5.1 - 5.4, FiveM hashed strings & a touch of Luau
 
 ```js
 const luamin = require('lua-format')
@@ -45,6 +45,12 @@ const Settings = {
 const Beautified = luamin.Beautify(Code, Settings)
 const Minified = luamin.Minify(Code, Settings)
 const Uglified = luamin.Uglify(Code, Settings)
+```
+
+## Example output
+
+```lua
+
 ```
 
 ## License
