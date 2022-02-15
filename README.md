@@ -49,6 +49,8 @@ const Uglified = luamin.Uglify(Code, Settings)
 
 ## Example output
 
+### Beautifier (with *SolveMath* & *RenameGlobals* enabled)
+
 input:
 ```lua
 local IiIiiIi = 0; IiiiIiI = 'hi' .. ' mom'; iIIIiI = 5 + 2;
@@ -59,6 +61,20 @@ output:
 local L_1_ = 0;
 G_1_ = "hi mom";
 G_2_ = 7;
+```
+
+### Minifier (with *RenameGlobals* enabled)
+
+input:
+```lua
+local L_1_ = 0;
+G_1_ = "hi mom";
+G_2_ = 7;
+```
+
+output:
+```lua
+local c=0;a="hi mom"b=7
 ```
 
 ## License
