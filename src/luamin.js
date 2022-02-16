@@ -5175,6 +5175,20 @@ function UglifyVariables(globalScope, rootScope, renameGlobals) {
     modify(rootScope)
 }
 
+// Default Options
+
+const DefaultOptions = { RenameVariables: true, RenameGlobals: false, SolveMath: true }
+
+function AddDefaultOptions(Options) {
+    Options.RenameVariables = "RenameVariables" in Options
+                                ? Options.RenameVariables : DefaultOptions.RenameVariables
+
+    Options.RenameGlobals = "RenameGlobals" in Options
+                                ? Options.RenameGlobals : DefaultOptions.RenameGlobals
+
+    Options.SolveMath = "SolveMath" in Options
+                            ? Options.SolveMath : DefaultOptions.SolveMath
+}
 
 // hi
 
@@ -5182,7 +5196,8 @@ let watermark = `--discord.gg/boronide, code generated using luamin.js™\n\n`
 
 let luaminp = {}
 
-luaminp.Minify = function(scr, options) {
+luaminp.Minify = function(scr, options = {}) {
+    AddDefaultOptions(options)
 
     let ast = CreateLuaParser(scr)
     let [glb, root] = AddVariableInfo(ast)
@@ -5203,7 +5218,9 @@ luaminp.Minify = function(scr, options) {
     return result
 }
 
-luaminp.Beautify = function(scr, options) {
+luaminp.Beautify = function(scr, options = {}) {
+    AddDefaultOptions(options)
+
     let ast = CreateLuaParser(scr)
     let [glb, root] = AddVariableInfo(ast)
     if (options.RenameVariables) {
@@ -5222,7 +5239,9 @@ luaminp.Beautify = function(scr, options) {
     return result
 }
 
-luaminp.Uglify = function(src1, options) {
+luaminp.Uglify = function(src1, options = {}) {
+    AddDefaultOptions(options)
+
     print("Sorry, but this is incredibly slow for large scripts.")
 
     let ast1 = CreateLuaParser(src1)
