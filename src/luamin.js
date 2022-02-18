@@ -2477,7 +2477,11 @@ function FormatAst(ast) {
         }
     }
 
+    function trimToken(tk) {
+        tk.LeadingWhite = tk.LeadingWhite.trim()
+    }
     function padToken(tk) {
+        trimToken(tk)
         if (!WhiteChars.includes(leadingChar(tk))) {
             tk.LeadingWhite = ' ' + tk.LeadingWhite
         }
@@ -2512,6 +2516,8 @@ function FormatAst(ast) {
                 || expr.Type == "VargLiteral")
         {
             // no
+            
+            trimToken(expr.Token)
         } else if(expr.Type == "FieldExpr") {
             formatExpr(expr.Base)
         } else if(expr.Type == "IndexExpr") {
@@ -2519,11 +2525,12 @@ function FormatAst(ast) {
             formatExpr(expr.Index)
         } else if(expr.Type == "MethodExpr" || expr.Type == "CallExpr") {
             formatExpr(expr.Base)
+            trimToken(expr.FunctionArguments.GetFirstToken())
+            trimToken(expr.FunctionArguments.GetLastToken())
             if (expr.Type == "MethodExpr") {
-
             }
-            if (expr.FunctionArguments.CallType == "StringCall") {
 
+            if (expr.FunctionArguments.CallType == "StringCall") {
             } else if(expr.FunctionArguments.CallType == "ArgCall") {
                 expr.FunctionArguments.ArgList.forEach((argExpr, index) => {
                     formatExpr(argExpr)
@@ -2531,8 +2538,8 @@ function FormatAst(ast) {
                         padExpr(argExpr)
                     }
                     let sep = expr.FunctionArguments.Token_CommaList[index]
-                     if (sep != null) {
-
+                    if (sep != null) {
+                        
                     }
                 })
 
@@ -2578,7 +2585,8 @@ function FormatAst(ast) {
                         padExpr(entry.Value)
                     } else if(entry.EntryType == "Index") {
                         if (expr.EntryList.length > die)
-                            entry.Token_OpenBracket.LeadingWhite = ''
+                            trimToken(entry.Token_OpenBracket)
+                            //entry.Token_OpenBracket.LeadingWhite = ''
                         else
                             applyIndent(entry.Token_OpenBracket);
 
@@ -2655,6 +2663,8 @@ function FormatAst(ast) {
                 }
             })
             if (stat.Token_Equals) {
+                //stat.Token_Equals.LeadingWhite = ''
+                trimToken(stat.Token_Equals)
                 padToken(stat.Token_Equals)
 
                 let newlist = []
@@ -2692,14 +2702,24 @@ function FormatAst(ast) {
             stat.FunctionStat.ArgList.forEach((arg, index) => {
                 if (index > 0) {
                     padToken(arg)
+                } else {
+                    trimToken(arg)
                 }
+                
                 let comma = stat.FunctionStat.Token_ArgCommaList[index]
+                if (comma)
+                    trimToken(comma)
             })
 
             if (stat.FunctionStat.ArgList.length > 0 && stat.FunctionStat.Token_Varg) {
+                trimToken(stat.FunctionStat.Token_Varg)
                 padToken(stat.FunctionStat.Token_Varg)
+            } else if (stat.FunctionStat.Token_Varg) {
+                trimToken(stat.FunctionStat.Token_Varg)
             }
 
+            trimToken(stat.FunctionStat.Token_OpenParen)
+            trimToken(stat.FunctionStat.Token_CloseParen)
             formatBody(stat.FunctionStat.Token_CloseParen, stat.FunctionStat.Body, stat.FunctionStat.Token_End)
         } else if(stat.Type == "FunctionStat") {
             stat.NameChain.forEach((part, index) => {
