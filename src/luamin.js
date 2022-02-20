@@ -480,6 +480,7 @@ function CreateLuaTokenStream(text) {
                     throw ("Unfinished string!")
                 }
             }
+
             token('Hash')
         } else if(AllIdentStartChars.includes(c1)) {
             // Ident or keyword
@@ -1049,6 +1050,15 @@ function CreateLuaParser(text) {
                 "GetLastToken": () => node.Token,
             })
             return node
+        } else if (tk.Type == "Hash") {
+            let node
+            node = MkNode({
+                "Type": "HashLiteral",
+                "Token": get(),
+                "GetFirstToken": () => node.Token,
+                "GetLastToken": () => node.Token,
+            })
+            return node 
         } else if(tk.Source == "nil") {
             let node
             node = MkNode({
@@ -1598,7 +1608,7 @@ function CreateLuaParser(text) {
 function VisitAst(ast, visitors) {
     let ExprType = {
 		'BinopExpr': true, 'UnopExpr': true, 
-		'NumberLiteral': true, 'StringLiteral': true, 'NilLiteral': true, 'BooleanLiteral': true, 'VargLiteral': true,
+		'NumberLiteral': true, 'StringLiteral': true, 'NilLiteral': true, 'BooleanLiteral': true, 'VargLiteral': true, "HashLiteral": true,
 		'FieldExpr': true, 'IndexExpr': true,
 		'MethodExpr': true, 'CallExpr': true,
 		'FunctionLiteral': true,
@@ -1666,7 +1676,7 @@ function VisitAst(ast, visitors) {
             visitExpr(expr.Rhs)
         } else if(expr.Type == "NumberLiteral" || expr.Type == "StringLiteral"
                 || expr.Type == "NilLiteral" || expr.Type == "BooleanLiteral"
-                || expr.Type == "VargLiteral") 
+                || expr.Type == "VargLiteral" || expr.Type == 'HashLiteral') 
         {
             //No
         } else if(expr.Type == "FieldExpr") {
@@ -1779,6 +1789,7 @@ function VisitAst(ast, visitors) {
         } else if(stat.Type == "CallExprStat") {
             visitExpr(stat.Expression)
         } else if(stat.Type == "CompoundStat") {
+            visitExpr(stat.Lhs)
             visitExpr(stat.Rhs)
         } else if(stat.Type == "AssignmentStat") {
             stat.Lhs.forEach((ex) => {
@@ -2154,7 +2165,7 @@ function PrintAst(ast) {
         } else if(
                 expr.Type == "NumberLiteral" || expr.Type == "StringLiteral"
                 || expr.Type == "NilLiteral" || expr.Type == "BooleanLiteral"
-                || expr.Type == "VargLiteral") 
+                || expr.Type == "VargLiteral" || expr.Type == 'HashLiteral') 
         {
             printt(expr.Token)
         } else if(expr.Type == "FieldExpr") {
@@ -2510,14 +2521,21 @@ function FormatAst(ast) {
                 padToken(expr.Token_Op)
             //}
         } else if(expr.Type == "UnopExpr") {
+            trimToken(expr.Token_Op)
             formatExpr(expr.Rhs)
+            if ( expr.Token_Op.Source[0])
+            padToken(expr.Rhs.GetFirstToken())
         } else if(expr.Type == "NumberLiteral" || expr.Type == "StringLiteral"
                 || expr.Type == "NilLiteral" || expr.Type == "BooleanLiteral"
-                || expr.Type == "VargLiteral")
+                || expr.Type == "VargLiteral" || expr.Type == 'HashLiteral')
         {
             // no
-            
+            console.log("AYOOOO")
             trimToken(expr.Token)
+            if (expr.Type == 'HashLiteral')
+                expr.Token.Source = '"' + hashString(`${expr.Token.Source.substring(1, expr.Token.Source.length - 1)}`) + '"'
+            
+            console.log(expr)
         } else if(expr.Type == "FieldExpr") {
             formatExpr(expr.Base)
         } else if(expr.Type == "IndexExpr") {
@@ -2538,9 +2556,8 @@ function FormatAst(ast) {
                         padExpr(argExpr)
                     }
                     let sep = expr.FunctionArguments.Token_CommaList[index]
-                    if (sep != null) {
-                        
-                    }
+                    if (sep != null)
+                        trimToken(sep)
                 })
 
             } else if(expr.FunctionArguments.CallType == "TableCall") {
@@ -2564,6 +2581,8 @@ function FormatAst(ast) {
         } else if(expr.Type == "VariableExpr") {
             // no
         } else if(expr.Type == "ParenExpr") {
+            trimToken(expr.Token_OpenParen)
+            trimToken(expr.Token_CloseParen)
             formatExpr(expr.Expression)
         } else if(expr.Type == "TableLiteral") {
             if (expr.EntryList.length == 0) {
@@ -2610,6 +2629,8 @@ function FormatAst(ast) {
                     if (sep != null) {
                         if (expr.EntryList.length > die)
                             sep.LeadingWhite = '';
+                        else
+                            trimToken(sep)
                     }
                 })
                 undent()
@@ -2903,7 +2924,7 @@ function StripAst(ast) {
             joint(expr.Token_Op, expr.Rhs.GetFirstToken())
         } else if(expr.Type == "NumberLiteral" || expr.Type == "StringLiteral"
                 || expr.Type == "NilLiteral" || expr.Type == "BooleanLiteral"
-                || expr.Type == "VargLiteral")
+                || expr.Type == "VargLiteral" || 'HashLiteral')
         {
             stript(expr.Token)
         } else if(expr.Type == "FieldExpr") {
@@ -3247,6 +3268,7 @@ function SolveMath(ast) { // This is some ugly code sorry for whoever is seeing 
         "NumberLiteral": true,
         "BooleanLiteral": true,
         "StringLiteral": true,
+        'HashLiteral': true,
         "NilLiteral": true,
         "TableLiteral": true,
         "ParenExpr": true,
@@ -3391,8 +3413,8 @@ function SolveMath(ast) { // This is some ugly code sorry for whoever is seeing 
             if (right == null) return;
         }
 
-        if (lhs.Type == "StringLiteral") left = lSrc.toString();
-        if (rhs.Type == "StringLiteral") right = rSrc.toString();
+        if (lhs.Type == "StringLiteral" || lhs.Type == 'HashLiteral') left = lSrc.toString();
+        if (rhs.Type == "StringLiteral" || rhs.Type == 'HashLiteral') right = rSrc.toString();
 
 
         //  && lhs.Type == "NumberLiteral" && rhs.Type == "NumberLiteral"
@@ -3563,7 +3585,7 @@ function SolveMath(ast) { // This is some ugly code sorry for whoever is seeing 
                     let exprt = expr.Lhs
                     let expression = exprt.Expression
                     if(expression.Type == "NumberLiteral" || expression.Type == "StringLiteral"
-                        || expression.Type == "NilLiteral" || expression.Type == "BooleanLiteral")
+                        || expression.Type == "NilLiteral" || expression.Type == "BooleanLiteral" || expression.Type == 'HashLiteral')
                     {
                         //expr.Lhs = expression
                     }
@@ -3572,7 +3594,7 @@ function SolveMath(ast) { // This is some ugly code sorry for whoever is seeing 
                     let exprt = expr.Rhs
                     let expression = exprt.Expression
                     if(expression.Type == "NumberLiteral" || expression.Type == "StringLiteral"
-                        || expression.Type == "NilLiteral" || expression.Type == "BooleanLiteral")
+                        || expression.Type == "NilLiteral" || expression.Type == "BooleanLiteral" || expression.Type == 'HashLiteral')
                     {
                         //expr.Rhs = expression
                     }
@@ -3620,7 +3642,7 @@ function SolveMath(ast) { // This is some ugly code sorry for whoever is seeing 
             //solveExpr(expr.Rhs)
         } else if(expr.Type == "NumberLiteral" || expr.Type == "StringLiteral"
                 || expr.Type == "NilLiteral" || expr.Type == "BooleanLiteral"
-                || expr.Type == "VargLiteral")
+                || expr.Type == "VargLiteral" || expr.Type == 'HashLiteral')
         {
             // ...
             let token = expr.Token
@@ -3687,6 +3709,7 @@ function SolveMath(ast) { // This is some ugly code sorry for whoever is seeing 
                     if (c !== undefined && (
                         c.Type == "NumberLiteral" || c.Type == "StringLiteral"
                         || c.Type == "NilLiteral" || c.Type == "BooleanLiteral"
+                        || c.Type == 'HashLiteral'
                         )) {
                         
                         let v = fLit.ArgList[i]
@@ -3724,7 +3747,7 @@ function SolveMath(ast) { // This is some ugly code sorry for whoever is seeing 
 
             if(expr.Type == "NumberLiteral" || expr.Type == "StringLiteral"
                 || expr.Type == "NilLiteral" || expr.Type == "BooleanLiteral"
-                || expr.Type == "VargLiteral") 
+                || expr.Type == "VargLiteral" || expr.Type == 'HashLiteral') 
             {
                 removeParen(expr)
             }
@@ -4380,7 +4403,7 @@ function Uglify(ast) {
             joint(expr.Token_Op, expr.Rhs.GetFirstToken())
         } else if(expr.Type == "NumberLiteral" || expr.Type == "StringLiteral"
                 || expr.Type == "NilLiteral" || expr.Type == "BooleanLiteral"
-                || expr.Type == "VargLiteral")
+                || expr.Type == "VargLiteral" || expr.Type == 'HashLiteral')
         {
             if (uglied) {
                 switch(expr.Type) {
@@ -4504,6 +4527,7 @@ function Uglify(ast) {
                 case ("NilLiteral"):
                 case ("BooleanLiteral"):
                     expr.Token.Source += " "
+                case ('HashLiteral'):
                 case ("StringLiteral"):
                 case ("VargLiteral"): {
                     stript(expr.Token)
