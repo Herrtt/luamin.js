@@ -2530,12 +2530,10 @@ function FormatAst(ast) {
                 || expr.Type == "VargLiteral" || expr.Type == 'HashLiteral')
         {
             // no
-            console.log("AYOOOO")
+
             trimToken(expr.Token)
             if (expr.Type == 'HashLiteral')
                 expr.Token.Source = '"' + hashString(`${expr.Token.Source.substring(1, expr.Token.Source.length - 1)}`) + '"'
-            
-            console.log(expr)
         } else if(expr.Type == "FieldExpr") {
             formatExpr(expr.Base)
         } else if(expr.Type == "IndexExpr") {
