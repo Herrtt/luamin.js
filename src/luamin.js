@@ -2530,10 +2530,13 @@ function FormatAst(ast) {
                 || expr.Type == "VargLiteral" || expr.Type == 'HashLiteral')
         {
             // no
-
             trimToken(expr.Token)
-            if (expr.Type == 'HashLiteral')
+            if (expr.Type == 'HashLiteral') {
                 expr.Token.Source = '"' + hashString(`${expr.Token.Source.substring(1, expr.Token.Source.length - 1)}`) + '"'
+                expr.Type = 'StringLiteral'
+                expr.Token.Type = 'String'
+            }
+            
         } else if(expr.Type == "FieldExpr") {
             formatExpr(expr.Base)
         } else if(expr.Type == "IndexExpr") {
@@ -2878,7 +2881,8 @@ function StripAst(ast) {
     let stripStat
     let stripExpr
     function stript(token) {
-        token.LeadingWhite = ''
+        if (token)
+            token.LeadingWhite = ''
     }
     function joint(tokenA, tokenB, shit = false) {
         stript(tokenB)
@@ -3885,7 +3889,7 @@ function SolveMath(ast) { // This is some ugly code sorry for whoever is seeing 
                 if (s.Type !== 'ContinueStat'
                     && s.Type !== 'BreakStat'
                     && s.Type !== 'ReturnStat') {
-                    //replace(stat, s)
+                    replace(stat, s)
                 }
             }
         } else if(stat.Type == "IfStat") {
