@@ -364,7 +364,7 @@ function CreateLuaTokenStream(text) {
             if (src.substr(0,2) == "0x" || src.substr(0,2) == "0X") { // Kaid#0001
                 ntype = 'hex'
                 src = parseInt(src, 16)
-            } else if(src.substr(0,2) == "0b" || src.substr(0,2) == "0B") { // TODO: Not sure if this needs to be fixed too, I only tested 0X in vanilla lua 5.1 -Kaid
+            } else if(src.substr(0,2) == "0b" || src.substr(0,2) == "0B") { // Kaid#0001
                 ntype = 'bin'
                 src = parseInt(src.substr(2), 2)
             }
@@ -502,7 +502,7 @@ function CreateLuaTokenStream(text) {
                 while (HexDigits.includes(look()) || look() === '_') {
                     p++
                 }
-            } else if (c1 == '0' && (look() == 'b' || look() == 'B')) { // TODO: Not sure if this needs to be fixed too, I only tested 0X in vanilla lua 5.1 -Kaid
+            } else if (c1 == '0' && (look() == 'b' || look() == 'B')) { // Kaid#0001
                 p++
                 // Binary number
                 while (BinaryDigits.includes(look()) || look() === '_') {
