@@ -361,10 +361,10 @@ function CreateLuaTokenStream(text) {
         let src = text.substr(tokenStart, (p - tokenStart))
         let ntype = null
         if (type == "Number") {
-            if (src.substr(0,2) == "0x") {
+            if (src.substr(0,2).toLowerCase() == "0x") {
                 ntype = 'hex'
                 src = parseInt(src, 16)
-            } else if(src.substr(0,2) == "0b") {
+            } else if(src.substr(0,2).toLowerCase() == "0b") {
                 ntype = 'bin'
                 src = parseInt(src.substr(2), 2)
             }
@@ -496,13 +496,13 @@ function CreateLuaTokenStream(text) {
             
         } else if(Digits.includes(c1) || (c1 == '.' && Digits.includes(look()))) {
             // Number
-            if (c1 == '0' && look() == 'x') {
+            if (c1 == '0' && look().toLowerCase() == 'x') {
                 p++
                 // Hex number
                 while (HexDigits.includes(look()) || look() === '_') {
                     p++
                 }
-            } else if (c1 == '0' && look() == 'b') {
+            } else if (c1 == '0' && look().toLowerCase() == 'b') {
                 p++
                 // Binary number
                 while (BinaryDigits.includes(look()) || look() === '_') {
