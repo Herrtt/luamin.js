@@ -2912,21 +2912,21 @@ function StripAst(ast) {
     }
 
     stripExpr = function(expr) {
-        if (expr.Type == "BinopExpr") {
+        if (expr.Type === "BinopExpr") {
             stripExpr(expr.Lhs)
             stript(expr.Token_Op)
             stripExpr(expr.Rhs)
 
             joint(expr.Token_Op, expr.Rhs.GetFirstToken())
             joint(expr.Lhs.GetLastToken(), expr.Token_Op)
-        } else if(expr.Type == "UnopExpr") {
+        } else if(expr.Type === "UnopExpr") {
             stript(expr.Token_Op)
             stripExpr(expr.Rhs)
 
             joint(expr.Token_Op, expr.Rhs.GetFirstToken())
-        } else if(expr.Type == "NumberLiteral" || expr.Type == "StringLiteral"
-                || expr.Type == "NilLiteral" || expr.Type == "BooleanLiteral"
-                || expr.Type == "VargLiteral" || 'HashLiteral')
+        } else if(expr.Type === "NumberLiteral" || expr.Type === "StringLiteral"
+                || expr.Type === "NilLiteral" || expr.Type === "BooleanLiteral"
+                || expr.Type === "VargLiteral" || expr.Type === 'HashLiteral')
         {
             stript(expr.Token)
         } else if(expr.Type == "FieldExpr") {
