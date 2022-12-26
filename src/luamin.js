@@ -2,7 +2,7 @@
     discord.gg/boronide
 
 
-    Luamin.js | beautify, minify or uglify your Lua scripts!
+    Luamin.js | beautify or minify your Lua scripts!
 
 */ 
 
@@ -10,13 +10,6 @@
 
 // This project is old, stop dming me about bad coding practice. Thanks.
 
-function shuffle(a) {
-    for (let i = a.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [a[i], a[j]] = [a[j], a[i]];
-    }
-    return a;
-}
 
 function hashString(key) {
     var hash = 0, i = key.length;
@@ -181,13 +174,15 @@ let BlockFollowKeyword = [
 ]
 
 let UnopSet = [
-    '-',    'not',  '#',
+    '-', 'not', '#', '~'
 ]
 
 let BinopSet = [
-    '+',    '-',     '*',   '/',    '%',    '^',    '#',    //algorithmic
+    '+',    '-',     '*',   '/',    '%',    '^',    '#', '//',   //algorithmic
+
+    '&', '|', '~', '<<', '>>', // bitops
     
-    '..',   '.',     ':',   //dots / colons
+    '..',   '.',  ':',   //dots / colons
     
     '>',    '<',     '<=',  '>=',   '~=',   '==',  //arrows / conditional
     
@@ -196,22 +191,34 @@ let BinopSet = [
 	'and',  'or'    // conditional 
 ]
 
-/* let GlobalRenameIgnore = {
-} //unused */
+let UnaryPriority = 11
 let BinaryPriority = {
-    '+': [6, 6],
-    '-': [6, 6],
-    '*': [7, 7],
-    '/': [7, 7],
-    '%': [7, 7],
-    '^': [10, 9],
-    '..': [5, 4],
+    '^': [13, 12],
+    
+    '%': [10, 10],
+    '//': [10, 10],
+	'/': [10, 10],
+	'*': [10, 10],
+
+	'+': [9, 9],
+    '-': [9, 9],
+
+    '..': [8, 7],
+
+	'>>': [7, 7],
+	'<<': [7, 7],
+	'&': [6, 6],
+	'~': [5, 5],
+	'|': [4, 4],
+
+
     '==': [3, 3],
     '~=': [3, 3],
-    '>': [3, 3],
-    '<': [3, 3],
     '>=': [3, 3],
     '<=': [3, 3],
+	'>': [3, 3],
+	'<': [3, 3],
+
     '+=': [3, 3],
     '-=': [3, 3],
     '*=': [3, 3],
@@ -219,42 +226,12 @@ let BinaryPriority = {
     '^=': [3, 3],
     '%=': [3, 3],
     '..=': [3, 3],
+
     'and': [2, 2],
     'or': [1, 1],
 }
 
-let UnaryPriority = 8
 // Eof, Ident, KeyWord, Number, String, Symbol
-
-let uglyNames = []
-function generateUglyName(l = 20) {
-    function OwOIfy(str) {
-        return str.split('').map(v=>{
-            let c = Math.round(Math.random())
-            if (c && v.toLowerCase() !== 'w') return v.toUpperCase();
-            return v;
-        }).join('')
-
-    }
-    const vars = ['owo', 'uwu', 'Uwu','uwU', 'Owo', 'owO', 'uWu', 'oWo', 'UwU', 'OwO'] // UGLY
-    function gen() {
-        let a = ""
-        for (let i = 0; i<=l; i++) {
-            let num = Math.floor(Math.random() * vars.length)
-            a+= num !== 3? OwOIfy(vars[num]) : vars[num]
-        }
-        return a
-    }
-
-    let gamer = gen()
-    while (uglyNames.includes(gamer))
-        gamer = gen();
-
-    uglyNames.push(gamer)
-
-    return gamer
-}
-
 
 function CreateLuaTokenStream(text) {
     // Tracking for the current position in the buffer, and
@@ -363,10 +340,12 @@ function CreateLuaTokenStream(text) {
         if (type == "Number") {
             if (src.substr(0,2).toLowerCase() == "0x") {
                 ntype = 'hex'
-                src = parseInt(src, 16)
+                if (parseInt(src, 16) < 999999999999)
+                    src = parseInt(src, 16)
             } else if(src.substr(0,2).toLowerCase() == "0b") {
                 ntype = 'bin'
-                src = parseInt(src.substr(2), 2)
+                if (parseInt(src.substr(2), 2) < 999999999999) 
+                    src = parseInt(src.substr(2), 2)
             }
         }
         let tk = {
@@ -555,6 +534,9 @@ function CreateLuaTokenStream(text) {
                     get()
                 }
             }
+            token("Symbol")
+        } else if(BinopSet.includes(c1 + look())) {
+            get()
             token("Symbol")
         } else if(EqualSymbols.includes(c1)) {
             if (look() == "=") {
@@ -3953,965 +3935,6 @@ function SolveMath(ast) { // This is some ugly code sorry for whoever is seeing 
     solveStat(ast)
 }
 
-function genHexString(len) {
-    const hex = '0123456789ABCDEF';
-    let output = '';
-    for (let i = 0; i < len; ++i) {
-        output += hex.charAt(Math.floor(Math.random() * hex.length));
-    }
-    return output;
-}
-
-
-function Uglify(ast) {
-    let uglifyStat
-    let uglifyExpr
-    let constTokens = []
-    function stript(token) {
-        if (token != null)
-            token.LeadingWhite = '';
-    }
-
-
-    function removething(a) {
-        if (a == null || a.substr == null) return;
-
-        let start = a.substr(0,1)
-        let end = a.substr(-1,1)
-
-        let ret
-        if (start == `"` || start == `'`) ret = a.substr(1,a.length-2);
-        if (start == `[`) {
-            ret =  a.substr(2,a.length-4);
-            start = "[["
-            end = "]]"
-        }
-        if (ret == null) return '';
-
-        let newret = ''
-        let i
-        for (i=0;i<=ret.length;i++) {
-            let c = ret.substr(i,1)
-
-            if (c == `'` || c == `"`) {
-                newret += `\\${c}`
-            } else {
-                newret += c
-            }
-        }
-        return [newret, start, end]
-    }
-
-    function joint(tokenA, tokenB) {
-
-        stript(tokenB)
-        
-        let lastCh = (typeof tokenA.Source == 'string' ? tokenA.Source : tokenA.Source.toString()).substr(tokenA.Source.length - 1, 1)
-        let firstCh = (typeof tokenB.Source == 'string' ? tokenB.Source : tokenB.Source.toString()).substr(0,1)
-
-        if ((lastCh == "-" && firstCh == "-") || (AllIdentChars.includes(lastCh) && AllIdentChars.includes(firstCh))) {
-            tokenB.LeadingWhite = ' '
-        } else {
-            tokenB.LeadingWhite = ""
-        }
-    }
-
-    function bodyjoint(open, body, close) {
-        uglifyStat(body)
-        stript(close)
-        let bodyFirst = body.GetFirstToken()
-        let bodyLast = body.GetLastToken()
-
-        if (bodyFirst != null) {
-            joint(open, bodyFirst)
-            joint(bodyLast, close)
-        } else {
-            joint(open, close)
-        }
-    }
-
-    function cnode(node) {
-        let getf = node.GetFirstToken
-        let getl = node.GetLastToken
-
-        let self = node
-        node.GetFirstToken = function() {
-            let t = getf(self)
-            assert(t, node)
-            return t
-        }
-
-        node.GetLastToken = function() {
-            let t = getl(self)
-            assert(t, node)
-            return t
-        }
-
-        return node
-    }
-
-    function ctoken(type, source) {
-        return {type: type, Source: source, LeadingWhite: " "}
-    }
-
-    function replace(a,b) {
-        if (typeof(a) != "object" || typeof(b) != "object") return;
-
-        for (var [i,v] of Object.entries(a)) {
-            a[i] = null
-        }
-
-        for (var [i,v] of Object.entries(b)) {
-            a[i] = v
-        }
-    }
-
-    function createtype(type, val, type2=null) {
-        let a
-        a = cnode({
-            "Type": type,
-            "Token": {
-                "Type": type2 == null ? "Number" : type2,
-                "LeadingWhite": "",
-                "Source": "" + val,
-            },
-            "GetFirstToken": () => a.Token,
-            "GetLastToken": () => a.Token,
-        })
-        return a
-    }
-
-    function createtype2(type, val) {
-        let a
-        a = {
-            "Type": type,
-            "LeadingWhite": " ",
-            "Source": "" + val,
-        }
-        return a
-    }
-
-    function createbinop(operator, lhs, rhs) {
-        let a
-        a = {
-            "Type": "BinopExpr",
-            "Token_Op": {"Type":"Symbol", "LeadingWhite":"", "Source": operator},
-            "Lhs": lhs,
-            "Rhs": rhs,
-            "GetFirstToken": () => a.Lhs.GetFirstToken(),
-            "GetLastToken": () => a.Rhs.GetLastToken(),
-        }
-        return a
-    }
-
-    function createunop(operator, rhs) {
-        let node
-        node =  cnode({
-            "Type": "UnopExpr",
-            "Token_Op": {"Type":"Symbol", "LeadingWhite":" ", "Source": operator},
-            "Rhs": rhs,
-            "GetFirstToken": () => node.Token_Op,
-            "GetLastToken": () => node.Rhs.GetLastToken(),
-        })
-        return node
-    }
-
-    function rannum() {
-        return Math.floor(Math.random() * 99999)
-    }
-
-    function createparenexpr(Expr) {
-        let node = cnode({
-            Type: "ParenExpr",
-            Expression: Expr,
-            Token_OpenParen: ctoken("Symbol", "("),
-            Token_CloseParen: ctoken("Symbol", ")"),
-            GetFirstToken: (self) => self.Token_OpenParen,
-            GetLastToken: (self) => self.Token_CloseParen
-        })
-    }
-
-    function randomShit(a, b) {
-
-        let num = Math.floor(Math.random() * 8)
-        if (num == 0) {
-            return `((${a || rannum()}) + (${b || rannum()}))`
-        } else if(num == 1) {
-            return `((${a || rannum()}) * (${b || rannum()}))`
-        } else if(num == 2) {
-            return `((${a || rannum()}) ^ (${b || rannum()}))`
-        } else if(num == 3) {
-            return `((${a || rannum()}) / (${b || rannum()}))`
-        } else if(num == 4) {
-            return `((${a || rannum()}) .. (${b || rannum()}))`
-        } else if(num == 5) {
-            return `((${a || rannum()}) and (${b || rannum()}))`
-        } else if(num == 6) {
-            return `((${a || rannum()}) and (${b || rannum()}))`
-        } else {
-            return `(not (${a || rannum()}) and (${b || rannum()}))`
-        }
-    }
-
-    function generateRandomShit(ignore, value = 10) {
-        let num = ignore ? 1000 : Math.floor(Math.random() * 100)
-
-        let str // ${Math.floor(Math.random() * 999)}
-        if (num == 0) {
-            str = `${rannum()} and true or ${randomShit("(a)")} * (b)((false)(${randomShit()})("" + ".." .. ${randomShit()} .. "")(${randomShit()})) ^ ${randomShit()}`
-        } else if(num == 1 && !ignore) {
-            str = `(function(a,b,c)
-                return ${generateRandomShit(true)} 
-                    and a or a == nil or b * a + b, c end)('${genHexString(Math.floor(Math.random() * 12))}') 
-                    or ${randomShit()} 
-                    or ${rannum()} * ${randomShit()}`
-        } else {
-            str = `${Math.floor(Math.random() * 999)}`
-        }
-
-        let a = `${str}${i != 6 ? " " : ""}`;
-
-        return a
-    }
-
-    function generaterandomargs() {
-        let args = []
-        let commalist = []
-
-        return [args, commalist]
-    }
-
-    function createStatList(stats, semicolonList) {
-        let statList = cnode({
-            Type: "StatList",
-            StatementList: stats || [],
-            SemicolonList: semicolonList || [],
-            GetFirstToken: function(self) {
-                if (self.StatementList.length == 0) {
-                    return
-                } else {
-                    return self.StatementList[0].GetFirstToken()
-                }
-            },
-            GetLastToken: function(self) {
-                if (self.StatementList.length == 0) {
-                    return
-                } else if(self.SemicolonList[self.StatementList.length - 1]) {
-                    return self.SemicolonList[self.StatementList.length - 1]
-                } else {
-                    return self.StatementList[self.StatementList.length - 1].GetLastToken()
-                }
-            },
-        })
-        return statList
-    }
-
-    function createLocalStat(VarNames, ExprList) {
-        let expr = cnode({
-            Type: "LocalVarStat",
-            VarList: VarNames,
-            ExprList: ExprList || [],
-            Token_Local: { type: "Keyword", LeadingWhite: " ", Source: "local"},
-            Token_Equals: {type: "Symbol", LeadingWhite: " ", Source: "="},
-            Token_VarCommaList: [],
-            Token_ExprCommaList: [],
-            GetFirstToken: (self) => self.Token_Local,
-            GetLastToken: (self) => {
-                if (self.ExprList.length > 0) {
-                    return self.ExprList[self.ExprList.length - 1].GetLastToken()
-                } else {
-                    return self.VarList[self.VarList.length - 1]
-                }
-            }
-        })
-    }
-
-
-    function turnNumberToFTable(value1) {
-        let list = []
-        let seperators = []
-
-        let maxtablelength = 5
-
-        let a = (value1+"").split(".");
-        let value = a[0]
-        let dec = a[1]
-
-        let leftover = value - Math.min(value, maxtablelength) // Set max table length to 100
-
-        if (parseFloat(dec) && isFinite(parseFloat(dec))) {
-            leftover += (dec / 10)
-        }
-    
-        let tableLol = ""
-        for (let i = 0; i<Math.min(value, maxtablelength); i++) {
-            if (i == 0) {
-                tableLol += generateRandomShit()
-            } else {
-                tableLol += ", " + generateRandomShit()
-            }
-        }
-
-        let scr = `
-            local a = {${tableLol}}
-            return #a
-        `
-        // Sorry, creating a new parser is slow, but the easy way
-        let body = CreateLuaParser(scr)
-
-        
-        let ranargs = [
-                {Type: "Ident", Source: "a", LeadingWhite: " "},
-                {Type: "Ident", Source: "b", LeadingWhite: " "}, 
-        ]
-        let rancommas = [
-            {Type: "Symbol", Source: ",", LeadingWhite: " "},
-        ]
-        for (let i = 0; i>2; i++) {
-            let ran = Math.random()
-            if (ran > 0.5) {
-                args.push({Type: "Ident", Source: `d${Math.floor(Math.random() * 50)}`, LeadingWhite: " "})
-                commas.push({Type: "Symbol", Source: ",", LeadingWhite: " "})
-            }
-        }
-
-        let base = cnode({
-            Type: "ParenExpr",
-            Expression: cnode({
-                Type: "FunctionLiteral",
-                NameChain: undefined,
-                ArgList: ranargs,
-                Body: body,
-    
-                Token_Function: {Type: "Keyword", Source: "function", LeadingWhite: " "},
-                Token_NameChainSeperator: undefined,
-                Token_OpenParen: {Type: "Symbol", Source: "(", LeadingWhite: " "},
-                Token_Varg: undefined,
-                Token_ArgCommaList: rancommas,
-                Token_CloseParen: {Type: "Symbol", Source: ")", LeadingWhite: " "},
-                Token_End: {Type: "Keyword", Source: "end", LeadingWhite: " "},
-                GetFirstToken: (self) => self.Token_Function,
-                GetLastToken: (self) => self.Token_End,
-            }),
-            Token_OpenParen: {Type: "Symbol", Source: "(", LeadingWhite: " "},
-            Token_CloseParen: {Type: "Symbol", Source: ")", LeadingWhite: " "},
-            GetFirstToken: (self) => self.Token_OpenParen,
-            GetLastToken: (self) => self.Token_CloseParen
-        })
-
-
-        let [args, commalist] = generaterandomargs()
-        let expr = cnode({
-            Type: "CallExpr",
-            Base: base,
-
-            FunctionArguments: cnode({
-                CallType: "ArgCall",
-                ArgList: args || [],
-                
-                Token_CommaList: commalist || [],
-                Token_OpenParen: {Type: "Symbol", LeadingWhite: " ", Source: "("},
-                Token_CloseParen: {Type: "Symbol", LeadingWhite: " ", Source: ")"},
-                GetFirstToken: (self) => self.Token_OpenParen,
-                GetLastToken: (self) => self.Token_CloseParen
-            }),
-            GetFirstToken: (self) => self.Base.GetFirstToken(),
-            GetLastToken: (self) => self.FunctionArguments.GetLastToken()
-        })
-
-        let binop = createbinop("+", expr, createtype("NumberLiteral", leftover))
-        return binop//createparenexpr(binop)
-    }
-
-
-    function turnNumberToFString(value) {
-        let list = []
-        let seperators = []
-
-        let maxstrlength = 100
-
-        let leftover = value - Math.min(value, maxstrlength) // Set max table length to 100
-        let strlol = genHexString(Math.min(value, maxstrlength))
-
-        let scr = `
-            local a = "${strlol}"
-            return #a + ${leftover}
-        `
-        let body = CreateLuaParser(scr)
-
-        let base = cnode({
-            Type: "ParenExpr",
-            Expression: cnode({
-                Type: "FunctionLiteral",
-                NameChain: undefined,
-                ArgList: [],
-                Body: body,
-    
-                Token_Function: {Type: "Keyword", Source: "function", LeadingWhite: " "},
-                Token_NameChainSeperator: undefined,
-                Token_OpenParen: {Type: "Symbol", Source: "(", LeadingWhite: " "},
-                Token_Varg: undefined,
-                Token_ArgCommaList: [],
-                Token_CloseParen: {Type: "Symbol", Source: ")", LeadingWhite: " "},
-                Token_End: {Type: "Keyword", Source: "end", LeadingWhite: " "},
-                GetFirstToken: (self) => self.Token_Function,
-                GetLastToken: (self) => self.Token_End,
-            }),
-            Token_OpenParen: {Type: "Symbol", Source: "(", LeadingWhite: " "},
-            Token_CloseParen: {Type: "Symbol", Source: ")", LeadingWhite: " "},
-            GetFirstToken: (self) => self.Token_OpenParen,
-            GetLastToken: (self) => self.Token_CloseParen
-        })
-
-
-        let [args, commalist] = generaterandomargs()
-        let expr = cnode({
-            Type: "CallExpr",
-            Base: base,
-
-            FunctionArguments: cnode({
-                CallType: "ArgCall",
-                ArgList: args || [],
-                
-                Token_CommaList: commalist || [],
-                Token_OpenParen: {Type: "Symbol", LeadingWhite: " ", Source: "("},
-                Token_CloseParen: {Type: "Symbol", LeadingWhite: " ", Source: ")"},
-                GetFirstToken: (self) => self.Token_OpenParen,
-                GetLastToken: (self) => self.Token_CloseParen
-            }),
-            GetFirstToken: (self) => self.Base.GetFirstToken(),
-            GetLastToken: (self) => self.FunctionArguments.GetLastToken()
-        })
-
-
-        return expr//createbinop("+", expr, createtype("NumberLiteral", leftover))
-    }
-
-
-    let addedLocal = false
-    uglifyExpr = function(expr, uglied) {
-        if (expr.Type == "BinopExpr") {
-
-            uglifyExpr(expr.Lhs, uglied)
-            stript(expr.Token_Op)
-            uglifyExpr(expr.Rhs, uglied)
-
-            joint(expr.Token_Op, expr.Rhs.GetFirstToken())
-            joint(expr.Lhs.GetLastToken(), expr.Token_Op)
-        } else if(expr.Type == "UnopExpr") {
-            stript(expr.Token_Op)
-            uglifyExpr(expr.Rhs, uglied)
-
-            joint(expr.Token_Op, expr.Rhs.GetFirstToken())
-        } else if(expr.Type == "NumberLiteral" || expr.Type == "StringLiteral"
-                || expr.Type == "NilLiteral" || expr.Type == "BooleanLiteral"
-                || expr.Type == "VargLiteral" || expr.Type == 'HashLiteral')
-        {
-            if (uglied) {
-                switch(expr.Type) {
-                    case ("NumberLiteral"):
-                    case ("NilLiteral"):
-                    case ("BooleanLiteral"):
-                        expr.Token.Source += " "
-                    case ("StringLiteral"):
-                        constTokens.push(expr)
-                    case ("VargLiteral"): {
-                        stript(expr.Token)
-                    }
-                    default: {
-                        break
-                    }
-                }
-                return
-            }
-            
-            switch(expr.Type) {
-                case ("NumberLiteral"): {
-                    let value = isFinite(`0${expr.Token.Source}`) && parseFloat(`0${expr.Token.Source}`)
-
-                    let howtofuckup = Math.floor(Math.random() * 4)
-                    if (value !== null && typeof(value) == "number" && isFinite(value)) {
-                        if (howtofuckup === 0) { // Slow as fuck
-                            // #String
-                            let newexpr = turnNumberToFString(value)
-                            replace(expr, newexpr)
-                            //uglifyExpr(expr, true) // Just fucks me up
-                            break
-                        } else if(howtofuckup == 1) {
-                            // Math shit
-                            
-                            /*let ran = Math.floor(Math.random() * 100)
-                            if (ran === 0) {
-
-                            } else if(ran == 1) {
-
-                            } else {
-                                let plus = parseFloat(expr.Token.Source) - Math.floor(Math.random() * 500)
-                                let newor = parseFloat(expr.Token.Source - plus)
-                                let newexpr = createbinop("+", createtype("NumberLiteral", newor), createtype("NumberLiteral", plus))
-                                replace(expr, createparenexpr(newexpr))
-                            }*/
-                            break
-                        } else if(howtofuckup == 2) { // This shit is slow as fucks
-                            // #Table
-                            let newexpr = turnNumberToFTable(value, expr.Token.Source)
-                            replace(expr, newexpr)
-                            break
-                        } else {
-                            // IDK
-                            stript(expr.Token);
-                            //uglifyExpr(expr, true)
-                            break
-                        }
-                    }
-
-                    break
-                }
-
-                case ("StringLiteral"): {
-
-                    let [str, start, end] = removething(expr.Token.Source)
-
-                    let howtofuckup = 1//Math.floor(Math.random() * 5)
-                    if (howtofuckup == 0) {
-                        let b = ""
-                        let staph = false
-                        for (let i = 0; i < str.length; i++) {
-                            let char = str.charAt(i)
-
-                            if (char == "\\" || staph) {
-                                staph = true
-                                b += char
-                            } else {
-                                b += `\\${char.charCodeAt()}`
-                            }
-                        }
-                        expr.Token.Source = `'${b}'`
-                        break
-                    } else if(howtofuckup == 1) {
-                        let a = []
-                        let b = ""
-                        if (str.length > 100) {break}
-
-                        let staph = false // Idk, fuck \10120987602362362101+6
-
-                        for (let i = 0; i < str.length; i++) {
-                            let char = str.charAt(i)
-
-                            if (char == "\\") {
-                                staph = true
-                                b = str.substr(i, str.length-i)
-                                break
-                            }
-                            a.push(`${char.charCodeAt()}`);
-                        }
-                        let callexpr = CreateLuaParser(`_ = string.char(${a.concat()}) .. ${start}${b}${end}`).StatementList[0].Rhs[0]
-                        if (!addedLocal) {
-                            addedLocal = true
-                            let local = CreateLuaParser(`local string = string`).StatementList[0]
-                            ast.StatementList = [local].concat(ast.StatementList)
-                        }
-                        uglifyExpr(callexpr.Lhs, true)
-                        replace(expr, callexpr)
-                        break
-                    } else {
-                        break
-                    }
-                }
-
-                default: {
-                    break
-                }
-            }
-
-            switch(expr.Type) {
-                case ("NumberLiteral"):
-                case ("NilLiteral"):
-                case ("BooleanLiteral"):
-                    expr.Token.Source += " "
-                case ('HashLiteral'):
-                case ("StringLiteral"):
-                case ("VargLiteral"): {
-                    stript(expr.Token)
-                }
-                default: {
-                    break
-                }
-            }
-        } else if(expr.Type == "FieldExpr") {
-            uglifyExpr(expr.Base, uglied)
-            stript(expr.Token_Dot)
-            stript(expr.Field)
-        } else if(expr.Type == "IndexExpr") {
-
-            uglifyExpr(expr.Base, uglied)
-            stript(expr.Token_OpenBracket)
-            uglifyExpr(expr.Index, uglied)
-            stript(expr.Token_CloseBracket)
-        } else if(expr.Type == "MethodExpr" || expr.Type == "CallExpr") {
-            uglifyExpr(expr.Base, uglied)
-            if (expr.Type == "MethodExpr") {
-                stript(expr.Token_Colon)
-                stript(expr.Method)
-            }
-            if (expr.FunctionArguments.CallType == "StringCall") {
-                stript(expr.FunctionArguments.Token)
-            } else if(expr.FunctionArguments.CallType == "ArgCall") {
-                stript(expr.FunctionArguments.Token_OpenParen)
-                expr.FunctionArguments.ArgList.forEach((argExpr, index) => {
-                    uglifyExpr(argExpr, uglied)
-                    let sep = expr.FunctionArguments.Token_CommaList[index]
-                    if (sep != null) {
-                        stript(sep)
-                    }
-                })
-                stript(expr.FunctionArguments.Token_CloseParen)
-            } else if(expr.FunctionArguments.CallType == "TableCall") {
-                uglifyExpr(expr.FunctionArguments.TableExpr, uglied)
-            }
-        } else if(expr.Type == "FunctionLiteral") {
-            stript(expr.Token_Function)
-            stript(expr.Token_OpenParen)
-            expr.ArgList.forEach((arg, index) => {
-                stript(arg)
-                let comma = expr.Token_ArgCommaList[index]
-                if (comma != null) {
-                    stript(comma)
-                }
-            })
-            if (expr.Token_Varg != null) {
-                stript(expr.Token_Varg)
-            }
-            stript(expr.Token_CloseParen)
-            bodyjoint(expr.Token_CloseParen, expr.Body, expr.Token_End)
-        } else if(expr.Type == "VariableExpr") {
-            stript(expr.Token)
-        } else if(expr.Type == "ParenExpr") {
-            stript(expr.Token_OpenParen)
-            uglifyExpr(expr.Expression, uglied)
-            stript(expr.Token_CloseParen)
-        } else if(expr.Type == "TableLiteral") {
-            stript(expr.Token_OpenBrace)
-            expr.EntryList.forEach((entry, index) => {
-                if (entry.EntryType == "Field") {
-                    stript(entry.Field)
-                    stript(entry.Token_Equals)
-                    uglifyExpr(entry.Value, uglied)
-                } else if(entry.EntryType == "Index") {
-                    stript(entry.Token_OpenBracket)
-                    uglifyExpr(entry.Index, uglied)
-                    stript(entry.Token_CloseBracket)
-                    stript(entry.Token_Equals)
-                    uglifyExpr(entry.Value, uglied)
-                } else if(entry.EntryType == "Value") {
-                    uglifyExpr(entry.Value, uglied)
-                } else {
-                    assert(false, "unreachable")
-                }
-                let sep = expr.Token_SeperatorList[index]
-                if (sep != null) {
-                    stript(sep)
-                }
-            })
-            
-            expr.Token_SeperatorList[expr.EntryList.length-1] = null
-            stript(expr.Token_CloseBrace)
-        } else {
-            throw(`unreachable, type: ${expr.Type}:${expr}  ${console.trace()}`)
-        }
-    }
-    
-    uglifyStat = function(stat, uglied) {
-        if (stat.Type == "StatList") {
-            let i
-            for (i=0; i<=stat.StatementList.length;i++) {
-                let chStat = stat.StatementList[i]
-                if (chStat == null) continue;
-                
-                uglifyStat(chStat, uglied)
-                stript(chStat.GetFirstToken())
-
-                let lastChStat = stat.StatementList[i-1]
-                if (lastChStat != null) {
-
-                    if (stat.SemicolonList[i-1]
-                        && lastChStat.GetLastToken().Source != ")" || chStat.GetFirstToken().Source != ")") 
-                    {
-                        stat.SemicolonList[i-1] = null
-                    }
-
-                    if (!stat.SemicolonList[i-1]) {
-                        joint(lastChStat.GetLastToken(), chStat.GetFirstToken())
-                    }
-                }
-            }
-
-            stat.SemicolonList[stat.StatementList.length-1] = null
-            if (stat.StatementList.length > 0) {
-                stript(stat.StatementList[0].GetFirstToken())
-            }
-        } else if(stat.Type == "BreakStat") {
-            stript(stat.Token_Break)
-        } else if(stat.Type == "ContinueStat") {
-            stript(stat.Token_Continue)
-        } else if(stat.Type == "ReturnStat") {
-            stript(stat.Token_Return)
-            stat.ExprList.forEach((expr, index) => {
-                uglifyExpr(expr, uglied)
-                if (stat.Token_CommaList[index] != null) {
-                    stript(stat.Token_CommaList[index])
-                }
-            })
-            if (stat.ExprList.length > 0) {
-                joint(stat.Token_Return, stat.ExprList[0].GetFirstToken())
-            }
-        } else if(stat.Type == "LocalVarStat") {
-            stript(stat.Token_Local)
-            stat.VarList.forEach((_var, index) => {
-                if (index == 0) {
-                    joint(stat.Token_Local, _var)
-                } else {
-                    stript(_var)
-                }
-                let comma = stat.Token_VarCommaList[index]
-                if (comma != null) {
-                    stript(comma)
-                }
-            })
-            if (stat.Token_Equals != null) {
-                stript(stat.Token_Equals)
-                stat.ExprList.forEach((expr, index) => {
-                    uglifyExpr(expr, uglied)
-                    let comma = stat.Token_ExprCommaList[index]
-                    if (comma != null) {
-                        stript(comma)
-                    }
-                })
-            }
-        } else if(stat.Type == "LocalFunctionStat") {
-            stript(stat.Token_Local)
-            joint(stat.Token_Local, stat.FunctionStat.Token_Function)
-            joint(stat.FunctionStat.Token_Function, stat.FunctionStat.NameChain[0])
-            joint(stat.FunctionStat.NameChain[0], stat.FunctionStat.Token_OpenParen)
-
-            stat.FunctionStat.ArgList.forEach((arg, index) => {
-                stript(arg)
-                let comma = stat.FunctionStat.Token_ArgCommaList[index]
-                if (comma != null) {
-                    stript(comma)
-                }
-            })
-            if (stat.FunctionStat.Token_Varg) {
-                stript(stat.FunctionStat.Token_Varg)
-            }
-            stript(stat.FunctionStat.Token_CloseParen)
-            bodyjoint(stat.FunctionStat.Token_CloseParen, stat.FunctionStat.Body, stat.FunctionStat.Token_End)
-        } else if(stat.Type == "FunctionStat") {
-            stript(stat.Token_Function)
-            stat.NameChain.forEach((part, index) => {
-                if (index == 0) {
-                    joint(stat.Token_Function, part)
-                } else {
-                    stript(part)
-                }
-                let sep = stat.Token_NameChainSeperator[index]
-                if (sep != null) {
-                    stript(sep)
-                }
-            })
-            stript(stat.Token_OpenParen)
-            stat.ArgList.forEach((arg, index) => {
-                stript(arg)
-                let comma = stat.Token_ArgCommaList[index]
-                if (comma != null) {
-                    stript(comma)
-                }
-            })
-
-            if (stat.Token_Varg) {
-                stript(stat.Token_Varg)
-            }
-            stript(stat.Token_CloseParen)
-            bodyjoint(stat.Token_CloseParen, stat.Body, stat.Token_End)
-        } else if(stat.Type == "RepeatStat") {
-            stript(stat.Token_Repeat)
-            bodyjoint(stat.Token_Repeat, stat.Body, stat.Token_Until)
-            uglifyExpr(stat.Condition, uglied)
-            joint(stat.Token_Until, stat.Condition.GetFirstToken())
-        } else if(stat.Type == "GenericForStat") {
-            stript(stat.Token_For)
-            stat.VarList.forEach((_var, index) => {
-                if (index == 0) {
-                    joint(stat.Token_For, _var)
-                } else {
-                    stript(_var)
-                }
-                let sep = stat.Token_VarCommaList[index]
-                if (sep != null) {
-                    stript(sep)
-                }
-            })
-            joint(stat.VarList[stat.VarList.length-1], stat.Token_In)
-            stat.GeneratorList.forEach((expr, index) => {
-                uglifyExpr(expr, uglied)
-                if (index == 0) {
-                    joint(stat.Token_In, expr.GetFirstToken())
-                }
-                let sep = stat.Token_GeneratorCommaList[index]
-                if (sep != null) {
-                    stript(sep)
-                }
-            })
-            joint(stat.GeneratorList[stat.GeneratorList.length-1].GetLastToken(), stat.Token_Do)
-            bodyjoint(stat.Token_Do, stat.Body, stat.Token_End)
-        } else if(stat.Type == "NumericForStat") {
-            stript(stat.Token_For)
-            stat.VarList.forEach((_var, index) => {
-                if (index == 0) {
-                    joint(stat.Token_For, _var)
-                } else {
-                    stript(_var)
-                }
-                let sep = stat.Token_VarCommaList[index]
-                if (sep != null) {
-                    stript(sep)
-                }
-            })
-            joint(stat.VarList[stat.VarList.length-1], stat.Token_Equals)
-            stat.RangeList.forEach((expr, index) => {
-                uglifyExpr(expr, uglied)
-                if (index == 0) {
-                    joint(stat.Token_Equals, expr.GetFirstToken())
-                }
-                let sep = stat.Token_RangeCommaList[index]
-                if (sep != null) {
-                    stript(sep)
-                }
-            })
-            joint(stat.RangeList[stat.RangeList.length-1].GetLastToken(), stat.Token_Do)
-            bodyjoint(stat.Token_Do, stat.Body, stat.Token_End)
-        } else if(stat.Type == "WhileStat") {
-            stript(stat.Token_While)
-            uglifyExpr(stat.Condition, uglied)
-            stript(stat.Token_Do)
-            joint(stat.Token_While, stat.Condition.GetFirstToken())
-            joint(stat.Condition.GetLastToken(), stat.Token_Do)
-            bodyjoint(stat.Token_Do, stat.Body, stat.Token_End)
-        } else if(stat.Type == "DoStat") {
-            stript(stat.Token_Do)
-            stript(stat.Token_End)
-            bodyjoint(stat.Token_Do, stat.Body, stat.Token_End)
-        } else if(stat.Type == "IfStat") {
-            stript(stat.Token_If)
-            uglifyExpr(stat.Condition, uglied)
-            joint(stat.Token_If, stat.Condition.GetFirstToken())
-            joint(stat.Condition.GetLastToken(), stat.Token_Then)
-
-            let lastBodyOpen = stat.Token_Then
-            let lastBody = stat.Body
-
-            stat.ElseClauseList.forEach((clause, i) => {
-                bodyjoint(lastBodyOpen, lastBody, clause.Token)
-                lastBodyOpen = clause.Token
-
-                if (clause.Condition != null) {
-                    uglifyExpr(clause.Condition, uglied)
-                    joint(clause.Token, clause.Condition.GetFirstToken())
-                    joint(clause.Condition.GetLastToken(), clause.Token_Then)
-                    lastBodyOpen = clause.Token_Then
-                }
-
-                uglifyStat(clause.Body, uglied)
-                lastBody = clause.Body            
-            })
-
-            bodyjoint(lastBodyOpen, lastBody, stat.Token_End)
-        } else if(stat.Type == "CallExprStat") {
-            uglifyExpr(stat.Expression, uglied)
-        } else if(stat.Type == "CompoundStat") {
-            uglifyExpr(stat.Lhs)
-            uglifyExpr(stat.Rhs)
-        } else if(stat.Type == "AssignmentStat") {
-            stat.Lhs.forEach((ex, index) => {
-                uglifyExpr(ex, uglied)
-                let sep = stat.Token_LhsSeperatorList[index]
-                if (sep != null) {
-                    stript(sep)
-                }
-            })
-            stript(stat.Token_Equals)
-            stat.Rhs.forEach((ex, index) => {
-                uglifyExpr(ex, uglied)
-                let sep = stat.Token_RhsSeperatorList[index]
-                if (sep != null) {
-                    stript(sep)
-                }
-            })
-        } else {
-            return uglifyExpr(stat, uglied)
-            //print(`unreachable, type: ${stat.Type}`,stat)
-            //throw(`unreachable, type: ${stat.Type}:${stat}`)
-        }
-    }
-
-    uglifyStat(ast)
-
-    let taken = {
-        NumberLiteral: {},
-        NilLiteral: {},
-        BooleanLiteral: {},
-        StringLiteral: {}
-    }
-    let consttable = ''
-    let A = 0
-    let consttableName = '__' + generateUglyName(25)
-    constTokens.forEach((v, i) => {
-        if (!taken[v.Type]) {
-            return
-        }
-
-        let ranName
-        if (taken[v.Type][v.Token.Source]) {
-            ranName = taken[v.Type][v.Token.Source]
-        } else {
-            ranName = `_${generateUglyName(10)}`
-            consttable += (A++ == 0 ? '' : ', ')
-                + `${ranName} = ${v.Token.Source}`
-
-            taken[v.Type][v.Token.Source] = ranName
-        }
-        
-
-        replace(v, cnode({
-            Type: "FieldExpr",
-            Base: cnode({
-                Type: 'VariableExpr',
-                Token: {
-                  Type: 'Ident',
-                  LeadingWhite: ' ',
-                  Source: consttableName,
-                }
-            }),
-            Field: {
-                Type: 'Ident',
-                LeadingWhite: '',
-                Source: ranName
-            },
-            Token_Dot: {Type: 'Symbol', LeadingWhite: '', Source: '.'}
-        }))
-
-
-    })
-    let top = CreateLuaParser(`
-    local ${consttableName} = {${consttable}}
-    `)
-
-    for (let i = 0; i < top.StatementList.length; i++) {
-        ast.StatementList.unshift(top.StatementList[i])
-    }
-}
-
-
 
 let idGen = 0
 let VarDigits = []
@@ -5174,55 +4197,6 @@ function BeautifyVariables(globalScope, rootScope, renameGlobals) {
     modify(rootScope)
 }
 
-function UglifyVariables(globalScope, rootScope, renameGlobals) {
-    let externalGlobals = []
-     globalScope.forEach((_var) => {
-        if (!_var.AssignedTo || !renameGlobals) {
-            externalGlobals[_var.Name] = true
-        }
-    })
-
-    let localNumber = 1
-    let globalNumber = 1
-    function setVarName(_var, name, d) {
-        _var.Name = name
-        _var.RenameList.forEach((setter) => {
-            setter(name, d)
-        })
-    }
-    if (renameGlobals) {
-        globalScope.forEach((_var) => {
-            if (_var.AssignedTo) {
-                setVarName(_var, `G_${globalNumber}_`)
-                globalNumber++
-            }
-        })
-    }
-
-    function modify(scope) {
-        scope.VariableList.forEach((_var) => {
-            let name = generateUglyName()//`L_${localNumber}_`
-            
-            if (_var.Info.Type == "Argument") {
-                //name = `${name}arg${_var.Info.Index}`
-            } else if(_var.Info.Type == "LocalFunction") {
-               // name = `${name}func`
-            } else if(_var.Info.Type == "ForRange") {
-                //name = `${name}forvar${_var.Info.Index}`
-            }
-            setVarName(_var, name)
-            localNumber++
-        })
-        scope.ChildScopeList.forEach((scope1) => {
-            modify(scope1)
-        })
-    }
-    
-    modify(rootScope)
-}
-
-
-// hi
 
 let watermark = `--discord.gg/boronide, code generated using luamin.js™\n\n`
 
@@ -5268,65 +4242,11 @@ luaminp.Beautify = function(scr, options) {
     return result
 }
 
-luaminp.Uglify = function(src1, options) {
-    print("Sorry, but this is incredibly slow for large scripts.")
-
-    let ast1 = CreateLuaParser(src1)
-    let [glb1] = AddVariableInfo(ast1)
-
-    let lol = []
-    let alreadyAdded = []
-
-    glb1.forEach((v) => {
-        if (alreadyAdded[v.Name]) {
-            /*v.RenameList.forEach((a, b) => {
-                alreadyAdded[v.Name].RenameList.push(a)
-                v.RenameList[b] = null
-            })*/
-            return
-        }
-        alreadyAdded[v.Name] = v
-
-        ast1.SemicolonList = [{type: "Symbol", Source: ";", LeadingWhite: ""}].concat(ast1.SemicolonList)
-        lol = [CreateLuaParser(`local ${v.Name} = getfenv()['${v.Name}']`).StatementList[0]].concat(lol)
-
-        //v.AssignedTo = true
-        /*v.RenameList.push((a) => {
-            localstat.VarList[0].Source = a
-        })*/
-    })
-    glb1 = null
-    alreadyAdded = null
-
-    shuffle(lol)
-    lol.forEach((v, i) => {
-        ast1.StatementList = [v].concat(ast1.StatementList)
-        lol[i] = null
-    })
-    lol = null
-
-    let src2 = PrintAst(ast1)
-    ast1 = null
-
-    let ast2 = CreateLuaParser(src2)
-    Uglify(ast2)
-    
-    StripAst(ast2)
-
-    let [ glb2, root2 ] = AddVariableInfo(ast2)
-    UglifyVariables(glb2, root2, options.RenameGlobals) // This is so fucking slow omg
-
-    let result = PrintAst(ast2)
-    result = `${watermark}\n\n${result}`
-
-    return result
-}
 
 try {
     if (module != null && module.exports != null) {
         module.exports.Beautify = luaminp.Beautify
         module.exports.Minify = luaminp.Minify
-        module.exports.Uglify = luaminp.Uglify
     }
 } catch(err) {/*idontcareboutthis*/}
 
