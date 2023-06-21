@@ -3636,7 +3636,7 @@ function SolveMath(ast) { // This is some ugly code sorry for whoever is seeing 
                     if (int.length === 2) {
                         let l = parseFloat(int[0])
                         let r = parseFloat(int[1])
-                        if (isFinite(l) && isFinite(r) && (l ** r) < 999999999)
+                        if (isFinite(l) && isFinite(r) && (l ** r) < 999999999 && (!token.Source.includes('+') && !!token.Source.includes('.') && !token.Source.includes('-')))
                             token.Source = (l ** r).toString();
                     }
                 }
