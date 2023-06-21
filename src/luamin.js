@@ -4,7 +4,7 @@
 
     Luamin.js | beautify or minify your Lua scripts!
 
-*/ 
+*/
 
 
 
@@ -42,24 +42,24 @@ function parseFloat(str, radix) { // Thanks stackoverflow (hex numbers with deci
     return parseInt(parts[0], radix);
 }
 
-/** 
- * 
+/**
+ *
  * regex to make arr : (arr)\[(\S*)\]
  * replace value : $1.includes($2)
- * 
+ *
 */
 
 let WhiteChars = [
-    ' ', 
-    '\n', 
-    '\t', 
+    ' ',
+    '\n',
+    '\t',
     '\r'
 ]
 
 //unused
 
 /* let EscapeForCharacter = {
-    '\r': '\\r', 
+    '\r': '\\r',
     '\n': '\\n',
     '\t': '\\t',
     '"': '\\"',
@@ -68,7 +68,7 @@ let WhiteChars = [
 } */
 
 let Main_CharacterForEscape = {
-    'r': '\r', 
+    'r': '\r',
     'n': '\n',
     't': '\t',
     '"': '"',
@@ -76,7 +76,7 @@ let Main_CharacterForEscape = {
     '\\': '\\',
 }
 
-const CharacterForEscape = new Proxy(Main_CharacterForEscape, { 
+const CharacterForEscape = new Proxy(Main_CharacterForEscape, {
     get(a, b) { return parseFloat(b) }
 })
 
@@ -100,9 +100,9 @@ let AllIdentStartChars = [
 let AllIdentChars = [
     '0',    '1',    '2',    '3',
     '4',    '5',    '6',    '7',
-    '8',    '9',    
-    
-    
+    '8',    '9',
+
+
     'A',    'B',
     'C',    'D',    'E',    'F',
     'G',    'H',    'I',    'J',
@@ -141,7 +141,7 @@ let BinaryDigits = [
 ]
 
 let Symbols = [
-    '+', '-', '*', ')', ';',  
+    '+', '-', '*', ')', ';',
     '/', '^', '%', '#',
     ',', '{', '}', ':',
     '[', ']', '(','.', '`'
@@ -160,16 +160,16 @@ let Compounds = [
 ]
 
 let Keywords = [
-    'and',      'break',    'do',   'else', 
+    'and',      'break',    'do',   'else',
     'elseif',   'end',      'false','for',
     'function', 'goto',     'if',   'in',
-    'local',    'nil',      'not',  'or', 
-    'repeat',   'return',   'then', 'true', 
+    'local',    'nil',      'not',  'or',
+    'repeat',   'return',   'then', 'true',
     'until',    'while', 'continue'
 ]
 
 let BlockFollowKeyword = [
-    'else',     'elseif', 
+    'else',     'elseif',
     'until',    'end'
 ]
 
@@ -181,20 +181,20 @@ let BinopSet = [
     '+',    '-',     '*',   '/',    '%',    '^',    '#', '//',   //algorithmic
 
     '&', '|', '~', '<<', '>>', // bitops
-    
+
     '..',   '.',  ':',   //dots / colons
-    
+
     '>',    '<',     '<=',  '>=',   '~=',   '==',  //arrows / conditional
-    
+
     '+=', '-=', '*=', '/=', '%=', '^=', '..=', // compounds
 
-	'and',  'or'    // conditional 
+	'and',  'or'    // conditional
 ]
 
 let UnaryPriority = 11
 let BinaryPriority = {
     '^': [13, 12],
-    
+
     '%': [10, 10],
     '//': [10, 10],
 	'/': [10, 10],
@@ -344,7 +344,7 @@ function CreateLuaTokenStream(text) {
                     src = parseInt(src, 16)
             } else if(src.substr(0,2).toLowerCase() == "0b") {
                 ntype = 'bin'
-                if (parseInt(src.substr(2), 2) < 999999999999) 
+                if (parseInt(src.substr(2), 2) < 999999999999)
                     src = parseInt(src.substr(2), 2)
             }
         }
@@ -415,7 +415,7 @@ function CreateLuaTokenStream(text) {
             }
         }
 
-        
+
         let leadingWhite = text.substr(whiteStart, (p - whiteStart))
         // Mark the token start
         tokenStart = p
@@ -472,7 +472,7 @@ function CreateLuaTokenStream(text) {
             } else {
                 token("Ident")
             }
-            
+
         } else if(Digits.includes(c1) || (c1 == '.' && Digits.includes(look()))) {
             // Number
             if (c1 == '0' && look().toLowerCase() == 'x') {
@@ -599,7 +599,7 @@ function CreateLuaParser(text) {
                     char++
                 }
             }
-            
+
             if (tk == token) {
                 break
             }
@@ -615,7 +615,7 @@ function CreateLuaParser(text) {
 
     function isBlockFollow() {
         let tok = peek()
-        return tok.Type == 'Eof' || (tok.Type == 'Keyword' && BlockFollowKeyword.includes(tok.Source))   
+        return tok.Type == 'Eof' || (tok.Type == 'Keyword' && BlockFollowKeyword.includes(tok.Source))
     }
 
     function isUnop() {
@@ -703,10 +703,10 @@ function CreateLuaParser(text) {
                 'GetLastToken': () => node.Token,
             })
 
-            if (locals[node.Token.Source] != null) {
+            if (locals[node.Token.Source] != null && locals[node.Token.Source]?.Tokens?.push != null) {
                 locals[node.Token.Source].Tokens.push(node.Token)
                 locals[node.Token.Source].UseCountIncrease()
-            } else if(upvals[node.Token.Source] != null) {
+            } else if(upvals[node.Token.Source] != null && upvals[node.Token.Source]?.Tokens?.push != null) {
                 upvals[node.Token.Source].Tokens.push(node.Token)
                 upvals[node.Token.Source].UseCountIncrease()
             }
@@ -755,7 +755,7 @@ function CreateLuaParser(text) {
                 let field = get()
                 let eq = get()
                 let value = expr(locals, upvals)
-                
+
                 indx = field
                 val = value
                 entries.push({
@@ -766,7 +766,7 @@ function CreateLuaParser(text) {
                 })
             } else {
                 // Value
-        
+
                 let value = expr(locals, upvals)
                 entries.push({
                     "EntryType": "Value",
@@ -841,7 +841,7 @@ function CreateLuaParser(text) {
             let token = expect("Ident")
             nameChain.push(token)
 
-            while (peek().Source == ".") { 
+            while (peek().Source == ".") {
                 nameChainSeperator.push(get())
                 nameChain.push(expect("Ident"))
             }
@@ -1040,7 +1040,7 @@ function CreateLuaParser(text) {
                 "GetFirstToken": () => node.Token,
                 "GetLastToken": () => node.Token,
             })
-            return node 
+            return node
         } else if(tk.Source == "nil") {
             let node
             node = MkNode({
@@ -1094,8 +1094,8 @@ function CreateLuaParser(text) {
         } else {
             curNode = simpleexpr(locals, upvals)
             assert(curNode, "nil sipleexpr")
-        }  
-    
+        }
+
         while (isBinop() && BinaryPriority[peek().Source] != undefined && BinaryPriority[peek().Source][0] > limit) {
             let opTk = get()
             let rhs = subexpr(BinaryPriority[opTk.Source][1], locals, upvals)
@@ -1199,7 +1199,7 @@ function CreateLuaParser(text) {
             "Condition": condition,
             "Body": ifBody,
             "ElseClauseList": elseClauses,
-            
+
             "Token_If": ifKw,
             "Token_Then": thenKw,
             "Token_End": enKw,
@@ -1213,12 +1213,12 @@ function CreateLuaParser(text) {
     function dostat(locals, upvals) {
         let doKw = get()
         let [body, enKw] = blockbody("end", locals, upvals)
-        
+
         let node
         node = MkNode({
             "Type": "DoStat",
             "Body": body,
-            
+
             "Token_Do": doKw,
             "Token_End": enKw,
             "GetFirstToken": () => node.Token_Do,
@@ -1238,7 +1238,7 @@ function CreateLuaParser(text) {
             "Type": "WhileStat",
             "Condition": condition,
             "Body": body,
-            
+
             "Token_While": whileKw,
             "Token_Do": doKw,
             "Token_End": enKw,
@@ -1266,7 +1266,7 @@ function CreateLuaParser(text) {
                 "VarList": loopVars,
                 "RangeList": exprList,
                 "Body": body,
-                
+
                 "Token_For": forKw,
                 "Token_VarCommaList": loopVarCommas,
                 "Token_Equals": eqTk,
@@ -1349,7 +1349,7 @@ function CreateLuaParser(text) {
                 exprList = exprList1
                 exprCommaList = exprCommaList1
             }
-            
+
 
             let node
             node = MkNode({
@@ -1589,7 +1589,7 @@ function CreateLuaParser(text) {
 
 function VisitAst(ast, visitors) {
     let ExprType = {
-		'BinopExpr': true, 'UnopExpr': true, 
+		'BinopExpr': true, 'UnopExpr': true,
 		'NumberLiteral': true, 'StringLiteral': true, 'NilLiteral': true, 'BooleanLiteral': true, 'VargLiteral': true, "HashLiteral": true,
 		'FieldExpr': true, 'IndexExpr': true,
 		'MethodExpr': true, 'CallExpr': true,
@@ -1658,7 +1658,7 @@ function VisitAst(ast, visitors) {
             visitExpr(expr.Rhs)
         } else if(expr.Type == "NumberLiteral" || expr.Type == "StringLiteral"
                 || expr.Type == "NilLiteral" || expr.Type == "BooleanLiteral"
-                || expr.Type == "VargLiteral" || expr.Type == 'HashLiteral') 
+                || expr.Type == "VargLiteral" || expr.Type == 'HashLiteral')
         {
             //No
         } else if(expr.Type == "FieldExpr") {
@@ -1715,7 +1715,7 @@ function VisitAst(ast, visitors) {
                     if (ch === null || ch.Type === null) {
                         return
                     }
-    
+
                     ch.Remove = () => {
                         stat.StatementList[index] = null
                     }
@@ -1785,7 +1785,7 @@ function VisitAst(ast, visitors) {
         }
         postVisit(stat)
     }
-    
+
     if (StatType[ast.Type]) {
         visitStat(ast)
     } else {
@@ -1820,19 +1820,19 @@ function AddVariableInfo(ast) {
         }
         let self = currentScope
         currentScope.GetVar = function(varName){
-            self.VariableList.forEach((_var) => {
+             for(const _var of self.VariableList) {
                 if (_var.Name == varName) {
                     return _var
                 }
-            })
+            }
             if (self.ParentScope) {
                 return self.ParentScope.GetVar(varName)
             } else {
-                globalVars.forEach((_var) => {
+                for(const _var of globalVars) {
                     if (_var.Name == varName) {
                         return _var
                     }
-                })
+                }
             }
         }
     }
@@ -1877,11 +1877,11 @@ function AddVariableInfo(ast) {
     }
 
     function getGlobalVar(name) {
-        globalVars.forEach((_var) => {
+        for(const _var of globalVars) {
             if (_var.Name == name) {
                 return _var
             }
-        })
+        }
 
         let _var = {
             "Type": "Global",
@@ -1900,7 +1900,7 @@ function AddVariableInfo(ast) {
                 renameFunc(newName)
             })
         }
-        
+
         globalVars.push(_var)
 
         return _var
@@ -1989,7 +1989,7 @@ function AddVariableInfo(ast) {
 
     visitor.LocalVarStat = {
         "Post": function(stat) {
-    
+
             stat.VarList.forEach((ident, varNum) => {
                 addLocalVar(ident.Source, function(name) {
                     stat.VarList[varNum].Source = name
@@ -2147,7 +2147,7 @@ function PrintAst(ast) {
         } else if(
                 expr.Type == "NumberLiteral" || expr.Type == "StringLiteral"
                 || expr.Type == "NilLiteral" || expr.Type == "BooleanLiteral"
-                || expr.Type == "VargLiteral" || expr.Type == 'HashLiteral') 
+                || expr.Type == "VargLiteral" || expr.Type == 'HashLiteral')
         {
             printt(expr.Token)
         } else if(expr.Type == "FieldExpr") {
@@ -2423,7 +2423,7 @@ function PrintAst(ast) {
         }
     }
     printStat(ast)
-    
+
     return buffer
 }
 
@@ -2518,7 +2518,7 @@ function FormatAst(ast) {
                 expr.Type = 'StringLiteral'
                 expr.Token.Type = 'String'
             }
-            
+
         } else if(expr.Type == "FieldExpr") {
             formatExpr(expr.Base)
         } else if(expr.Type == "IndexExpr") {
@@ -2650,7 +2650,7 @@ function FormatAst(ast) {
         } else if(stat.Type == "ContinueStat") {
             // fuck off
         } else if(stat.Type == "ReturnStat") {
-            
+
             stat.ExprList.forEach((expr, index) => {
                 formatExpr(expr)
                 padExpr(expr)
@@ -2709,7 +2709,7 @@ function FormatAst(ast) {
                 } else {
                     trimToken(arg)
                 }
-                
+
                 let comma = stat.FunctionStat.Token_ArgCommaList[index]
                 if (comma)
                     trimToken(comma)
@@ -2871,7 +2871,7 @@ function StripAst(ast) {
 
         let lastCh = (typeof tokenA.Source == 'string' ? tokenA.Source : tokenA.Source.toString()).substr(tokenA.Source.length - 1,1)
         let firstCh = (typeof tokenB.Source == 'string' ? tokenB.Source : tokenB.Source.toString()).substr(0,1)
-        
+
         if ((lastCh == "-" && firstCh == "-") || (AllIdentChars.includes(lastCh) && AllIdentChars.includes(firstCh)) || (shit && lastCh == ')' && firstCh == '(')) {
             tokenB.LeadingWhite = shit ? ';' : ' '
         } else {
@@ -2985,21 +2985,21 @@ function StripAst(ast) {
                     stript(sep)
                 }
             })
-            
+
             expr.Token_SeperatorList[expr.EntryList.length-1] = null
             stript(expr.Token_CloseBrace)
         } else {
             throw(`unreachable, type: ${expr.Type}:${expr}  ${console.trace()}`)
         }
     }
-    
+
     stripStat = function(stat) {
         if (stat.Type == "StatList") {
             let i
             for (i=0; i<=stat.StatementList.length;i++) {
                 let chStat = stat.StatementList[i]
                 if (chStat == null) continue;
-                
+
                 stripStat(chStat)
                 stript(chStat.GetFirstToken())
                 let lastChStat = stat.StatementList[i-1]
@@ -3202,7 +3202,7 @@ function StripAst(ast) {
                 }
 
                 stripStat(clause.Body)
-                lastBody = clause.Body            
+                lastBody = clause.Body
             })
 
             bodyjoint(lastBodyOpen, lastBody, stat.Token_End)
@@ -3407,7 +3407,7 @@ function SolveMath(ast) { // This is some ugly code sorry for whoever is seeing 
             if (operator == "~=") return left != right;
             if (operator == "and") return left && right;
             if (operator == "or") return left || right;
-            if (operator == ".." && lhs.Type == "StringLiteral" && rhs.Type == "StringLiteral") 
+            if (operator == ".." && lhs.Type == "StringLiteral" && rhs.Type == "StringLiteral")
                 return `"${removething(lSrc) + removething(rSrc)}"`;
 
             if (lhs.Type == "StringLiteral") left = parseFloat(removething(left));
@@ -3497,7 +3497,7 @@ function SolveMath(ast) { // This is some ugly code sorry for whoever is seeing 
                 } else if(amount <= 0) {
                     return createunop("#", rhs)
                 }
-    
+
                 let newex = createbinop("+", createtype("NumberLiteral", amount), createunop("#", rhs));
                 return newex
             }
@@ -3564,7 +3564,7 @@ function SolveMath(ast) { // This is some ugly code sorry for whoever is seeing 
                         return
                     }
                 }
-                
+
                 if (expr.Lhs.Type == "ParenExpr") {
                     let exprt = expr.Lhs
                     let expression = exprt.Expression
@@ -3612,7 +3612,7 @@ function SolveMath(ast) { // This is some ugly code sorry for whoever is seeing 
                             let str = createtype("StringLiteral", val, "String")
 
                             replace(expr, str)
-                            
+
                             return
                         } else if(typeof(val) == "object") {
                             replace(expr, val)
@@ -3656,7 +3656,7 @@ function SolveMath(ast) { // This is some ugly code sorry for whoever is seeing 
                         )  {
                           return String.fromCharCode(num)
                         }
-                        
+
                         return got
                     })
                 }
@@ -3682,12 +3682,12 @@ function SolveMath(ast) { // This is some ugly code sorry for whoever is seeing 
 
             if (expr.Base.Type === 'ParenExpr'
                 && expr.Base.Expression.Type === 'FunctionLiteral'
-                && expr.FunctionArguments.CallType === 'ArgCall') 
+                && expr.FunctionArguments.CallType === 'ArgCall')
             {
                 let fLit = expr.Base.Expression
                 expr.FunctionArguments.ArgList.forEach((v, i) => {
                     let c = expr.FunctionArguments.ArgList[i]
-                    
+
 
 
                     if (c !== undefined && (
@@ -3695,7 +3695,7 @@ function SolveMath(ast) { // This is some ugly code sorry for whoever is seeing 
                         || c.Type == "NilLiteral" || c.Type == "BooleanLiteral"
                         || c.Type == 'HashLiteral'
                         )) {
-                        
+
                         let v = fLit.ArgList[i]
                         if (v) {
                             v.var.RenameList.forEach(v => {
@@ -3711,8 +3711,8 @@ function SolveMath(ast) { // This is some ugly code sorry for whoever is seeing 
                         if (expr.FunctionArguments.Token_CommaList.length > 0)
                             expr.FunctionArguments.Token_CommaList.shift()*/
                         }
-                        
-                        
+
+
                     }
                 })
             }
@@ -3731,7 +3731,7 @@ function SolveMath(ast) { // This is some ugly code sorry for whoever is seeing 
 
             if(expr.Type == "NumberLiteral" || expr.Type == "StringLiteral"
                 || expr.Type == "NilLiteral" || expr.Type == "BooleanLiteral"
-                || expr.Type == "VargLiteral" || expr.Type == 'HashLiteral') 
+                || expr.Type == "VargLiteral" || expr.Type == 'HashLiteral')
             {
                 removeParen(expr)
             }
@@ -3752,7 +3752,7 @@ function SolveMath(ast) { // This is some ugly code sorry for whoever is seeing 
             //throw(`unreachable, type: ${expr.Type}:${expr}  ${console.trace()}`)
         }
     }
-    
+
     solveStat = function(stat) {
         if (stat.Type == "StatList") {
             stat.StatementList.forEach((ch, index) => {
@@ -3880,10 +3880,10 @@ function SolveMath(ast) { // This is some ugly code sorry for whoever is seeing 
             stat.ElseClauseList.forEach((clause, i) => {
                 if (clause.Condition != null) {
                     solveExpr(clause.Condition)
-                }  
-                solveStat(clause.Body)   
+                }
+                solveStat(clause.Body)
             })
-            
+
             let condition = stat.Condition
             switch (condition.Type) {
                 case "ParenExpr": {
@@ -3924,7 +3924,7 @@ function SolveMath(ast) { // This is some ugly code sorry for whoever is seeing 
       if (typeof value === 'object' && value !== null) {
         // Duplicate reference found, discard key
         if (cache.includes(value)) return;
-    
+
         // Store value in our collection
         cache.push(value);
       }
@@ -4009,7 +4009,7 @@ function MinifyVariables(globalScope, rootScope) {
             nextFreeNameIndex++
             while (Keywords.includes(varName) || externalGlobals[varName]) {
                 varName = indexToVarName(nextFreeNameIndex)
-                nextFreeNameIndex++ 
+                nextFreeNameIndex++
             }
             _var.Rename(varName)
         }
@@ -4043,7 +4043,7 @@ function MinifyVariables_2(globalScope, rootScope, renameGlobals) {
 
     let allVariables = []
     let allLocalVariables = []
-    
+
     globalScope.forEach((_var) => {
         if (_var.AssignedTo && renameGlobals) {
             allVariables.push(_var)
@@ -4079,7 +4079,7 @@ function MinifyVariables_2(globalScope, rootScope, renameGlobals) {
             nextValidNameIndex++
             while (globalUsedNames[name]) {
                 name = indexToVarName(nextValidNameIndex)
-                nextValidNameIndex++  
+                nextValidNameIndex++
             }
             varNamesLazy[i] = name
         }
@@ -4088,7 +4088,7 @@ function MinifyVariables_2(globalScope, rootScope, renameGlobals) {
 
     allVariables.forEach((_var, _) => {
         _var.Renamed = true
-        
+
         let i = 0
         while (_var.UsedNameArray[i]) {
             i++
@@ -4163,7 +4163,7 @@ function BeautifyVariables(globalScope, rootScope, renameGlobals) {
             setter(name)
         })
     }
-    
+
     if (renameGlobals) {
         let names = {}
         globalScope.forEach((_var) => {
@@ -4193,7 +4193,7 @@ function BeautifyVariables(globalScope, rootScope, renameGlobals) {
             modify(scope1)
         })
     }
-    
+
     modify(rootScope)
 }
 
