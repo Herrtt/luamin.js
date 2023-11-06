@@ -887,10 +887,11 @@ function CreateLuaParser(text) {
             let argNeeded = false;
             while (peek().Source != ")" || argNeeded) {
                 argList.push(expr(locals, upvals));
-                argNeeded = false;
                 if (peek().Source == ",") {
+		    argNeeded = true;
                     argCommaList.push(get())
                 } else {
+		    argNeeded = false;
                     break
                 }
             }
