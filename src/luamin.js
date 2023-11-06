@@ -1606,6 +1606,7 @@ function CreateLuaParser(text) {
   }
 
   let blocks = 1;
+  let indentation = -1;
   block = function (a, b) {
     let myblocknum = blocks++;
     let statements = [];
@@ -1628,7 +1629,11 @@ function CreateLuaParser(text) {
 
     let thing;
     let i = 0;
-    while (!isLast && !isBlockFollow()) {
+    ++indentation;
+    while (peek().Type != "Eof") {
+      if (isBlockFollow() && indentation > 0) {
+        break;
+      }
       if (thing && thing == peek()) {
         print(`INFINITE LOOP POSSIBLE ON STATEMENT ${thing.Source} :`, thing);
       }
@@ -1729,6 +1734,7 @@ function CreateLuaParser(text) {
         }
       },
     };
+    --indentation;
     return node;
   };
 
