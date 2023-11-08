@@ -884,11 +884,14 @@ function CreateLuaParser(text) {
             let oparenTk = get()
             let argList = []
             let argCommaList = []
-            while (peek().Source != ")") {
-                argList.push(expr(locals, upvals))
+            let argNeeded = false;
+            while (peek().Source != ")" || argNeeded) {
+                argList.push(expr(locals, upvals));
                 if (peek().Source == ",") {
+		    argNeeded = true;
                     argCommaList.push(get())
                 } else {
+		    argNeeded = false;
                     break
                 }
             }
