@@ -152,11 +152,11 @@ let EqualSymbols = [
 ]
 
 let CompoundSymbols = [
-    '+', '-', '*', '/', '^', '..', '%'
+    '+', '-', '*', '/', '^', '..', '%', '//'
 ]
 
 let Compounds = [
-    '+=', '-=', '*=', '/=', '^=', '..=', '%='
+    '+=', '-=', '*=', '/=', '^=', '..=', '%=', '//='
 ]
 
 let Keywords = [
@@ -186,7 +186,7 @@ let BinopSet = [
 
     '>',    '<',     '<=',  '>=',   '~=',   '==',  //arrows / conditional
 
-    '+=', '-=', '*=', '/=', '%=', '^=', '..=', // compounds
+    '+=', '-=', '*=', '/=', '%=', '^=', '..=', '//=', // compounds
 
 	'and',  'or'    // conditional
 ]
@@ -226,6 +226,7 @@ let BinaryPriority = {
     '^=': [3, 3],
     '%=': [3, 3],
     '..=': [3, 3],
+    '//=': [3, 3],
 
     'and': [2, 2],
     'or': [1, 1],
@@ -535,6 +536,11 @@ function CreateLuaTokenStream(text) {
                 }
             }
             token("Symbol")
+        } else if((c1 + look()) == '//') {
+            get()
+            if (look() == '=')
+                get()
+            token('Symbol')
         } else if(BinopSet.includes(c1 + look())) {
             get()
             token("Symbol")
@@ -795,12 +801,21 @@ function CreateLuaParser(text) {
         return node
     }
 
-
-    function varlist(acceptVarg) {
+    function varlist(acceptVarg, localdecl) {
         let varList = []
         let commaList = []
         if (peek().Type == "Ident") {
-            varList.push(get())
+            let idn = get()
+            if (localdecl) {
+                if (peek().Source == '<' && peek(2).Source == '>') {
+                    let attrb = peek(1).Source
+                    idn.Attribute = { LeadingWhite: peek().LeadingWhite, Source: `<${attrb}>` }
+                    get(); 
+                    get();
+                    get();
+                }
+            }
+            varList.push(idn)
         } else if(peek().Source == "..." && acceptVarg) {
             return [varList, commaList, get()]
         }
@@ -810,10 +825,19 @@ function CreateLuaParser(text) {
                 return [varList, commaList, get()]
             } else {
                 let id = expect("Ident")
+                if (localdecl) {
+                    if (peek().Source == '<' && peek(2).Source == '>') {
+                        let attrb = peek(1).Source
+                        id.Attribute = { LeadingWhite: peek().LeadingWhite, Source: `<${attrb}>` }
+                        get(); 
+                        get();
+                        get();
+                    }
+                }
                 varList.push(id)
             }
         }
-        return [varList, commaList]
+        return [varList, commaList ]
     }
 
     function blockbody(terminator, locals, upvals) {
@@ -885,7 +909,7 @@ function CreateLuaParser(text) {
             let argList = []
             let argCommaList = []
             while (peek().Source != ")") {
-                argList.push(expr(locals, upvals))
+                argList.push(expr(locals, upvals));
                 if (peek().Source == ",") {
                     argCommaList.push(get())
                 } else {
@@ -1339,7 +1363,7 @@ function CreateLuaParser(text) {
             })
             return node
         } else if(peek().Type == "Ident") {
-            let [varList, varCommaList] = varlist(false)
+            let [varList, varCommaList ] = varlist(false, true)
             let exprList = []
             let exprCommaList = []
             let eqToken
@@ -1349,7 +1373,6 @@ function CreateLuaParser(text) {
                 exprList = exprList1
                 exprCommaList = exprCommaList1
             }
-
 
             let node
             node = MkNode({
@@ -1568,7 +1591,7 @@ function CreateLuaParser(text) {
                 if (node.StatementList.length == 0) {
                     return
                 } else {
-                    return node.StatementList[0].GetFirstToken()
+                    return node.StatementList[0]?.GetFirstToken()
                 }
             },
             "GetLastToken": function() {
@@ -2129,6 +2152,9 @@ function PrintAst(ast) {
     let printStat
     let printExpr
     let buffer = ''
+    let getLeadingWhite = (tk) =>
+        (typeof tk?.LeadingWhite !== 'string' ? ' ' : tk.LeadingWhite)
+
     function printt(tk) {
         if (tk.LeadingWhite == null || tk.Source == null) {
             throw `Bad token: tk=${tk} | lwhite=${tk.LeadingWhite} | source=${tk.Source}`
@@ -2237,6 +2263,16 @@ function PrintAst(ast) {
             throw `STAT IS NIL! ${stat}`
         }
 
+        if (stat.Type === 'StatList' && stat.StatementList.length === 0)
+            return
+
+
+        if (stat.WrapInDo) {
+            let wspace = getLeadingWhite(stat.GetFirstToken())
+            stat.GetFirstToken().LeadingWhite = ''
+            buffer += `${wspace}do `
+        }
+
         if (stat.Type == "StatList") {
             stat.StatementList.forEach((ch, index) => {
                 if (ch === null || ch.Type === null) {
@@ -2269,6 +2305,9 @@ function PrintAst(ast) {
             printt(stat.Token_Local)
             stat.VarList.forEach((_var, index) => {
                 printt(_var)
+                if (_var.Attribute != null) {
+                    printt(_var.Attribute)
+                }
                 let comma = stat.Token_VarCommaList[index]
                 if (comma != null) {
                     printt(comma)
@@ -2421,6 +2460,10 @@ function PrintAst(ast) {
         } else {
             assert(false, "unreachable")
         }
+
+        if (stat.WrapInDo) {
+            buffer += ` end `
+        }
     }
     printStat(ast)
 
@@ -2432,6 +2475,9 @@ function FormatAst(ast) {
     let formatExpr
     let currentIndent = 0
     function applyIndent(token) {
+        if (token === undefined)
+            return
+        
         let indentString = `\n${"\t".repeat(currentIndent)}`
         if (token.LeadingWhite == '' || (token.LeadingWhite.substr(-indentString.length, indentString.length) != indentString)) {
             //token.LeadingWhite = token.LeadingWhite.replace("\n?[\t ]*$") /Remove all \n & \t at end of string
@@ -2638,6 +2684,10 @@ function FormatAst(ast) {
                     return
                 }
 
+                if (stat.Type === 'StatList' && stat.StatementList.length === 0)
+                    return
+
+                
                 stat.Remove = () => {
                     stat.StatementList[index] = null
                 }
@@ -2661,6 +2711,9 @@ function FormatAst(ast) {
         } else if(stat.Type == "LocalVarStat") {
             stat.VarList.forEach((_var, index) => {
                 padToken(_var)
+                if (_var.Attribute) {
+                    _var.Attribute.LeadingWhite = ' '
+                }
                 let comma = stat.Token_VarCommaList[index]
                 if (comma != null) {
 
@@ -2896,11 +2949,16 @@ function StripAst(ast) {
     stripExpr = function(expr) {
         if (expr.Type === "BinopExpr") {
             stripExpr(expr.Lhs)
-            stript(expr.Token_Op)
             stripExpr(expr.Rhs)
-
-            joint(expr.Token_Op, expr.Rhs.GetFirstToken())
             joint(expr.Lhs.GetLastToken(), expr.Token_Op)
+
+            if (expr.Lhs.Type == 'NumberLiteral' && expr.Token_Op.Source == '..') {
+                expr.Token_Op.LeadingWhite = ' '
+            } else {
+                stript(expr.Token_Op)
+                joint(expr.Token_Op, expr.Rhs.GetFirstToken())
+            }
+
         } else if(expr.Type === "UnopExpr") {
             stript(expr.Token_Op)
             stripExpr(expr.Rhs)
@@ -3047,19 +3105,27 @@ function StripAst(ast) {
             }
         } else if(stat.Type == "LocalVarStat") {
             stript(stat.Token_Local)
+            let dontStripEqualSign = false
             stat.VarList.forEach((_var, index) => {
                 if (index == 0) {
                     joint(stat.Token_Local, _var)
                 } else {
                     stript(_var)
                 }
+                if (_var.Attribute) {
+                    stript(_var.Attribute)
+                    if ((index + 1) == stat.VarList.length)
+                        dontStripEqualSign = true
+                }
+
                 let comma = stat.Token_VarCommaList[index]
                 if (comma != null) {
                     stript(comma)
                 }
             })
             if (stat.Token_Equals != null) {
-                stript(stat.Token_Equals)
+                if (!dontStripEqualSign)
+                    stript(stat.Token_Equals)
                 stat.ExprList.forEach((expr, index) => {
                     stripExpr(expr)
                     let comma = stat.Token_ExprCommaList[index]
@@ -4197,8 +4263,125 @@ function BeautifyVariables(globalScope, rootScope, renameGlobals) {
     modify(rootScope)
 }
 
+function GetInnerExpression(stat) {
+    let inner = stat
+    while (inner.Type === 'ParenExpr')
+        inner = inner.Expression
+    return inner
+}
 
-let watermark = `--discord.gg/boronide, code generated using luamin.js™\n\n`
+function SolveCFlow(ast) {
+    // todo - improve this
+    let visitor = {}
+    visitor.WhileStat = stat => {
+        if (stat.Condition.Type !== 'BooleanLiteral'
+            || stat.Condition.Token.Source !== 'true')
+            return
+
+        let enumName = null
+        let enums = []
+        let enumIndex = []
+        for (let statV of Object.entries(stat.Body.StatementList)) {
+            if (statV[1].Type !== 'IfStat' || statV[1].ElseClauseList.length !== 0)
+                return //console.log('not correct..')
+            
+            let condition = GetInnerExpression(statV[1].Condition)
+            let _lhs = GetInnerExpression(condition.Lhs)
+            let _rhs = GetInnerExpression(condition.Rhs)
+            if (condition.Type === 'BinopExpr') {
+                let lhs
+                let rhs
+                if (_lhs.Type === 'VariableExpr' 
+                    && _rhs.Type === 'NumberLiteral') {
+                    lhs = condition.Lhs
+                    rhs = condition.Rhs
+                    
+                } else if(_rhs.Type === 'VariableExpr'
+                    && _lhs.Type === 'NumberLiteral') {
+                    lhs = condition.Rhs
+                    rhs = condition.Lhs
+                    _lhs = GetInnerExpression(condition.Rhs)
+                    _rhs = GetInnerExpression(condition.Lhs)
+                }
+
+                if (lhs == null || rhs == null) {
+                    return// console.log('no lhs/rhs')
+                }
+                
+                if (enumName == null)
+                    enumName = _lhs.Variable.Name
+
+                if (enumName !== _lhs.Variable.Name)
+                    return //console.log('not same var name')
+
+                // figure out what the next enum code will be
+
+                let nextEnum = null
+                for (let stat2V of Object.entries(statV[1].Body.StatementList)) {
+                    if (stat2V[1].Type === 'AssignmentStat'
+                        && stat2V[1].Lhs[0].Type === 'VariableExpr'
+                        && stat2V[1].Lhs[0].Variable.Name === enumName) {
+                        nextEnum = stat2V[1].Rhs[0].Token.Source
+                        stat2V[1].Remove()
+                    } else if(stat2V[1].Type === 'BreakStat') {
+                        //console.log('break')
+                        stat2V[1].Remove()
+                    }
+                }
+
+                enumIndex.push(_rhs.Token.Source)
+                enums.push({ enum: _rhs.Token.Source, nextEnum: nextEnum, body: statV[1].Body })
+                //console.log(enums, statV[1])
+                statV[1].Body.WrapInDo = true
+            }
+        }
+
+        let order = [ ]
+        let order2 = []
+        for (let obj of Object.entries(enums)) {
+            let V = obj[1]
+            if (V.nextEnum === null) {
+                order.push(V.enum)
+                continue
+            }
+
+            let index = order.indexOf(V.nextEnum)
+            let index2 = order2.indexOf(V.Enum)
+            if (index !== -1) {
+                order.splice(index, 0, V.enum)
+                order2.splice(index, 0, V.nextEnum)
+            } else if (index2 !== -1) {
+                order.splice(index2 - 1, 0, V.enum)
+                order2.splice(index2, 0, V.nextEnum)
+            } else {
+                order.splice(0, 0, V.enum)
+                order2.splice(0, 0, V.nextEnum)
+            }
+        }
+
+        let newStatList = []
+        order.forEach(v => {
+            newStatList.splice(v, 0, enums[enumIndex.indexOf(v)].body)
+        })
+
+        //console.log(stat)
+        stat.Type = 'StatList'
+        stat.StatementList = newStatList
+        stat.SemicolonList = []
+        stat.GetFirstToken = () => newStatList[0].GetFirstToken()
+        stat.LeadingWhite = ''
+        //console.log(stat, newStatList, order, enums[0].body)
+        
+        //console.log(enums)
+
+    }
+    
+    
+    VisitAst(ast, visitor)
+}
+
+
+let watermark = `--[[\n\tCode generated using github.com/Herrtt/luamin.js\n\tAn open source Lua beautifier and minifier.\n--]]\n\n`
 
 let luaminp = {}
 
@@ -4232,6 +4415,8 @@ luaminp.Beautify = function(scr, options) {
 
     if (options.SolveMath == true) {
         SolveMath(ast) // oboy
+        SolveCFlow(ast) // pretty trash at the moment, may fix, may not
+
     }
 
     FormatAst(ast)
