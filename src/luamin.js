@@ -2950,15 +2950,15 @@ function StripAst(ast) {
         if (expr.Type === "BinopExpr") {
             stripExpr(expr.Lhs)
             stripExpr(expr.Rhs)
-            joint(expr.Lhs.GetLastToken(), expr.Token_Op)
 
             if (expr.Lhs.Type == 'NumberLiteral' && expr.Token_Op.Source == '..') {
                 expr.Token_Op.LeadingWhite = ' '
             } else {
                 stript(expr.Token_Op)
-                joint(expr.Token_Op, expr.Rhs.GetFirstToken())
+                joint(expr.Lhs.GetLastToken(), expr.Token_Op)
             }
 
+            joint(expr.Token_Op, expr.Rhs.GetFirstToken())
         } else if(expr.Type === "UnopExpr") {
             stript(expr.Token_Op)
             stripExpr(expr.Rhs)
@@ -4415,7 +4415,7 @@ luaminp.Beautify = function(scr, options) {
 
     if (options.SolveMath == true) {
         SolveMath(ast) // oboy
-        SolveCFlow(ast) // pretty trash at the moment, may fix, may not
+        //SolveCFlow(ast) // pretty trash at the moment, may fix, may not
 
     }
 
