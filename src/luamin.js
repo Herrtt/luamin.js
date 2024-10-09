@@ -537,22 +537,30 @@ function CreateLuaTokenStream(text) {
             }
             token("Symbol")
         } else if((c1 + look()) == '//') {
+            // Floor Division -& Compound
             get()
             if (look() == '=')
                 get()
             token('Symbol')
+        } else if((c1 + look()) == '::') {
+            get()
+            token('Symbol')
         } else if(BinopSet.includes(c1 + look())) {
+            // Binary Operations 
             get()
             token("Symbol")
         } else if(EqualSymbols.includes(c1)) {
+            // Single or double equal sign
             if (look() == "=") {
                 p++
             }
             token("Symbol")
         } else if(CompoundSymbols.includes(c1) && look() == '=') {
+            // Compounds
             get()
             token('Symbol')
         } else if(Symbols.includes(c1)) {
+            // Symbols
             token("Symbol")
         } else {
             throw(`Bad symbol \`${c1}\` in source. ${p}`)
@@ -1450,6 +1458,46 @@ function CreateLuaParser(text) {
         return self
     }
 
+    function gotostat() {
+        let gotoKw = get()
+        let labelKw
+        if (peek().Type == 'Keyword')
+            labelKw = expect('Keyword')
+        else
+            labelKw = expect('Ident')
+
+        let self
+        self = {
+            "Type": "GotoStat",
+            "Token_Goto": gotoKw,
+            "Token_Label": labelKw,
+            "GetFirstToken": () => self.Token_Goto,
+            "GetLastToken": () => self.Token_Label
+        }
+        return self
+    }
+
+    function labelstat() {
+        let colonsKw1 = get()
+        let labelKw
+        if (peek().Type == 'Keyword')
+            labelKw = expect('Keyword')
+        else
+            labelKw = expect('Ident')
+        let colonsKw2 = expect('Symbol', '::')
+
+        let self
+        self = {
+            "Type": "LabelStat",
+            "Token_ColonsLeft": colonsKw1,
+            "Token_Label": labelKw,
+            "Token_ColonsRight": colonsKw2,
+            "GetFirstToken": () => self.Token_ColonsLeft,
+            "GetLastToken": () => self.Token_ColonsRight
+        }
+        return self
+    }
+
     function statement(locals, upvals) {
         let tok = peek()
         if (tok.Source == "if") {
@@ -1472,6 +1520,10 @@ function CreateLuaParser(text) {
             return [true, breakstat(locals, upvals)]
         } else if(tok.Source == "continue") {
             return [true, continuestat(locals, upvals)]
+        } else if(tok.Source == 'goto') {
+            return [false, gotostat()]
+        } else if(tok.Source == '::') {
+            return [false, labelstat()]
         } else {
             return [false, exprstat(locals, upvals)]
         }
@@ -1626,6 +1678,8 @@ function VisitAst(ast, visitors) {
 		'StatList': true,
 		'BreakStat': true,
         'ContinueStat': true,
+        'LabelStat': true,
+        'GotoStat': true,
 		'ReturnStat': true,
 		'LocalVarStat': true,
 		'LocalFunctionStat': true,
@@ -1750,6 +1804,10 @@ function VisitAst(ast, visitors) {
             // no
         } else if(stat.Type == "ContinueStat") {
             // fuck off
+        } else if(stat.Type == 'GotoStat') {
+            //
+        } else if(stat.Type == 'LabelStat') {
+            // 
         } else if(stat.Type == "ReturnStat") {
             stat.ExprList.forEach((expr, index) => {
                 visitExpr(expr)
@@ -2293,6 +2351,13 @@ function PrintAst(ast) {
             printt(stat.Token_Break)
         } else if(stat.Type == "ContinueStat") {
             printt(stat.Token_Continue)
+        } else if(stat.Type == 'GotoStat') {
+            printt(stat.Token_Goto)
+            printt(stat.Token_Label)
+        } else if(stat.Type == 'LabelStat') {
+            printt(stat.Token_ColonsLeft)
+            printt(stat.Token_Label)
+            printt(stat.Token_ColonsRight)
         } else if(stat.Type == "ReturnStat") {
             printt(stat.Token_Return)
             stat.ExprList.forEach((expr, index) => {
@@ -2699,6 +2764,10 @@ function FormatAst(ast) {
             // no
         } else if(stat.Type == "ContinueStat") {
             // fuck off
+        } else if(stat.Type == 'GotoStat') {
+            // todo - format goto stat.
+        } else if(stat.Type == 'LabelStat') {
+            // todo - not much
         } else if(stat.Type == "ReturnStat") {
 
             stat.ExprList.forEach((expr, index) => {
@@ -3070,11 +3139,8 @@ function StripAst(ast) {
                     if (stat.SemicolonList[i-1]) {
                         let lastS = lastChStat.GetLastToken().Source
                         let firstS = chStat.GetFirstToken().Source
-                        //console.log(bannedCombos[lastS], bannedCombos[lastS] !== undefined ? bannedCombos[lastS].includes(firstS) : '', firstS, lastS)
                         if (bannedCombos[lastS] === null || bannedCombos[lastS] === undefined || !bannedCombos[lastS].includes(firstS)) {
                             stat.SemicolonList[i-1] = null
-                        } else {
-                            //console.log(lastS, firstS)
                         }
                     }
 
@@ -3092,6 +3158,14 @@ function StripAst(ast) {
             stript(stat.Token_Break)
         } else if(stat.Type == "ContinueStat") {
             stript(stat.Token_Continue)
+        } else if(stat.Type == 'GotoStat') {
+            // todo strip goto stat
+            stript(stat.Token_Goto)
+            joint(stat.Token_Goto, stat.Token_Label)
+        } else if (stat.Type == 'LabelStat') {
+            stript(stat.Token_ColonsLeft)
+            stript(stat.Token_Label)
+            stript(stat.Token_ColonsRight)
         } else if(stat.Type == "ReturnStat") {
             stript(stat.Token_Return)
             stat.ExprList.forEach((expr, index) => {
@@ -3301,8 +3375,6 @@ function StripAst(ast) {
             })
         } else {
             return stripExpr(stat)
-            //print(`unreachable, type: ${stat.Type}`,stat)
-            //throw(`unreachable, type: ${stat.Type}:${stat}`)
         }
     }
 
@@ -3767,18 +3839,7 @@ function SolveMath(ast) { // This is some ugly code sorry for whoever is seeing 
                             v.var.RenameList.forEach(v => {
                                 v(c.Token.Source, true)
                             })
-
-                        //console.log(c, expr.FunctionArguments.ArgList)
-                        /*fLit.ArgList.splice(i, 1)
-                        if (fLit.Token_ArgCommaList.length > 0)
-                            fLit.Token_ArgCommaList.shift()
-
-                        expr.FunctionArguments.ArgList.splice(i, 1)
-                        if (expr.FunctionArguments.Token_CommaList.length > 0)
-                            expr.FunctionArguments.Token_CommaList.shift()*/
                         }
-
-
                     }
                 })
             }
@@ -3978,25 +4039,8 @@ function SolveMath(ast) { // This is some ugly code sorry for whoever is seeing 
             stat.Rhs.forEach((ex, index) => {
                 solveExpr(ex)
             })
-        } else {
-            //print(`unreachable, type: ${stat.Type}`,stat)
-            //throw(`unreachable, type: ${stat.Type}:${stat}`)
         }
     }
-
-
-    /*let cache = [];
-    console.log(JSON.stringify(ast, (key, value) => {
-      if (typeof value === 'object' && value !== null) {
-        // Duplicate reference found, discard key
-        if (cache.includes(value)) return;
-
-        // Store value in our collection
-        cache.push(value);
-      }
-      return value;
-    }));
-    cache = null;*/
 
     solveStat(ast)
 }
@@ -4283,7 +4327,7 @@ function SolveCFlow(ast) {
         let enumIndex = []
         for (let statV of Object.entries(stat.Body.StatementList)) {
             if (statV[1].Type !== 'IfStat' || statV[1].ElseClauseList.length !== 0)
-                return //console.log('not correct..')
+                return
             
             let condition = GetInnerExpression(statV[1].Condition)
             let _lhs = GetInnerExpression(condition.Lhs)
@@ -4305,16 +4349,14 @@ function SolveCFlow(ast) {
                 }
 
                 if (lhs == null || rhs == null) {
-                    return// console.log('no lhs/rhs')
+                    return
                 }
                 
                 if (enumName == null)
                     enumName = _lhs.Variable.Name
 
                 if (enumName !== _lhs.Variable.Name)
-                    return //console.log('not same var name')
-
-                // figure out what the next enum code will be
+                    return
 
                 let nextEnum = null
                 for (let stat2V of Object.entries(statV[1].Body.StatementList)) {
@@ -4324,14 +4366,12 @@ function SolveCFlow(ast) {
                         nextEnum = stat2V[1].Rhs[0].Token.Source
                         stat2V[1].Remove()
                     } else if(stat2V[1].Type === 'BreakStat') {
-                        //console.log('break')
                         stat2V[1].Remove()
                     }
                 }
 
                 enumIndex.push(_rhs.Token.Source)
                 enums.push({ enum: _rhs.Token.Source, nextEnum: nextEnum, body: statV[1].Body })
-                //console.log(enums, statV[1])
                 statV[1].Body.WrapInDo = true
             }
         }
@@ -4364,18 +4404,12 @@ function SolveCFlow(ast) {
             newStatList.splice(v, 0, enums[enumIndex.indexOf(v)].body)
         })
 
-        //console.log(stat)
         stat.Type = 'StatList'
         stat.StatementList = newStatList
         stat.SemicolonList = []
         stat.GetFirstToken = () => newStatList[0].GetFirstToken()
         stat.LeadingWhite = ''
-        //console.log(stat, newStatList, order, enums[0].body)
-        
-        //console.log(enums)
-
     }
-    
     
     VisitAst(ast, visitor)
 }
