@@ -1165,12 +1165,14 @@ function CreateLuaParser(text) {
         } else {
             let lhs = [ex]
             let lhsSeperator = []
+            ex.IsStat = true
             while (peek().Source == ",") {
                 lhsSeperator.push(get())
                 let lhsPart = primaryexpr(locals, upvals)
                 if (lhsPart.Type == "MethodExpr" || lhsPart.Type == "CallExpr") {
                     throw "Bad left hand side of asignment"
                 }
+                lhsPart.IsStat = true
                 lhs.push(lhsPart)
             }
             let eq = expect("Symbol", "=")
@@ -1180,6 +1182,7 @@ function CreateLuaParser(text) {
                 rhsSeperator.push(get())
                 rhs.push(expr(locals, upvals))
             }
+
 
             let node
             node = MkNode({
@@ -2051,8 +2054,11 @@ function AddVariableInfo(ast) {
     }
 
     visitor.VariableExpr = function(expr) {
-        expr.Variable = referenceVariable(expr.Token.Source, function(newName) {
-            expr.Token.Source = newName
+        expr.Variable = referenceVariable(expr.Token.Source, function(newName, saveStat = false) {
+            if (saveStat && expr.IsStat)
+                return;
+
+            expr.Token.Source = newName 
         })
     }
 
@@ -2535,7 +2541,7 @@ function PrintAst(ast) {
     return buffer
 }
 
-function FormatAst(ast) {
+function FormatAst(ast, indentation) {
     let formatStat
     let formatExpr
     let currentIndent = 0
@@ -2543,7 +2549,9 @@ function FormatAst(ast) {
         if (token === undefined)
             return
         
-        let indentString = `\n${"\t".repeat(currentIndent)}`
+        
+
+        let indentString = `\n${(indentation).repeat(currentIndent)}`
         if (token.LeadingWhite == '' || (token.LeadingWhite.substr(-indentString.length, indentString.length) != indentString)) {
             //token.LeadingWhite = token.LeadingWhite.replace("\n?[\t ]*$") /Remove all \n & \t at end of string
             // idk string patterns in js :(
@@ -3817,16 +3825,14 @@ function SolveMath(ast) { // This is some ugly code sorry for whoever is seeing 
             }
 
 
-
-            if (expr.Base.Type === 'ParenExpr'
+            // This causes a few problems.
+            /*if (expr.Base.Type === 'ParenExpr'
                 && expr.Base.Expression.Type === 'FunctionLiteral'
                 && expr.FunctionArguments.CallType === 'ArgCall')
             {
                 let fLit = expr.Base.Expression
                 expr.FunctionArguments.ArgList.forEach((v, i) => {
                     let c = expr.FunctionArguments.ArgList[i]
-
-
 
                     if (c !== undefined && (
                         c.Type == "NumberLiteral" || c.Type == "StringLiteral"
@@ -3836,13 +3842,13 @@ function SolveMath(ast) { // This is some ugly code sorry for whoever is seeing 
 
                         let v = fLit.ArgList[i]
                         if (v) {
-                            v.var.RenameList.forEach(v => {
-                                v(c.Token.Source, true)
+                            v.var.RenameList.forEach(func => {
+                                func(c.Token.Source, true)
                             })
                         }
                     }
                 })
-            }
+            }*/
 
         } else if(expr.Type == "FunctionLiteral") {
             solveStat(expr.Body)
@@ -4453,7 +4459,8 @@ luaminp.Beautify = function(scr, options) {
 
     }
 
-    FormatAst(ast)
+    options.Indentation = (typeof options.Indentation === 'string') ? options.Indentation : '\t' 
+    FormatAst(ast, options.Indentation)
 
     let result = PrintAst(ast)
     result = `${watermark}\n\n${result}`
