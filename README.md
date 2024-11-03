@@ -1,8 +1,8 @@
 ![luamin-logo](https://github.com/Herrtt/luamin.js/blob/master/img/luamin_logo.png?raw=true)
 
 # luamin.js (a.k.a. lua-format)
-Luamin is a Lua Beautifier & Minifier, written in pure JavaScript.
-Supports Lua 5.1 - 5.4, FiveM hashed strings & a touch of Luau
+Luamin is a Lua Beautifier & Minifier, written in JavaScript.
+Supports Lua 5.1 - 5.4, FiveM hashed strings & a little bit of Luau
 
 ```js
 const luamin = require('lua-format')
@@ -11,7 +11,8 @@ const code = `print("hello world!")`
 const source = luamin.Beautify(code, {
   RenameVariables: true,
   RenameGlobals: false,
-  SolveMath: true
+  SolveMath: true,
+  Indentation: '\t'
 })
 ```
 
@@ -38,12 +39,12 @@ const Code = `print("hello world!")`
 const Settings = {
   RenameVariables: true,
   RenameGlobals: false,
-  SolveMath: true
+  SolveMath: true,
+  Indentation: '\t'
 }
 
 const Beautified = luamin.Beautify(Code, Settings)
 const Minified = luamin.Minify(Code, Settings)
-const Uglified = luamin.Uglify(Code, Settings)
 ```
 
 ## Example output
