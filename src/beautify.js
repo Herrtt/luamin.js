@@ -15,6 +15,7 @@ fs.readFile(`${inputFile}`, "utf8", (err, src) => {
         RenameVariables: true,
         RenameGlobals: false,
         SolveMath: true,
+        Indentation: '\t',
     }), (err) => {
         if (err) throw err;
         console.log(`saved to ${outputFile}`)
