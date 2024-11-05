@@ -341,12 +341,13 @@ function CreateLuaTokenStream(text) {
         if (type == "Number") {
             if (src.substr(0,2).toLowerCase() == "0x") {
                 ntype = 'hex'
+		src = src.replace(/_/g,"")
                 if (parseInt(src, 16) < 999999999999)
                     src = parseInt(src, 16)
             } else if(src.substr(0,2).toLowerCase() == "0b") {
                 ntype = 'bin'
-                if (parseInt(src.substr(2), 2) < 999999999999)
-                    src = parseInt(src.substr(2), 2)
+                if (parseInt(src.substr(2).replace(/_/g, ""), 2) < 999999999999)
+                    src = parseInt(src.substr(2).replace(/_/g, ""), 2)
             }
         }
         let tk = {
@@ -372,6 +373,14 @@ function CreateLuaTokenStream(text) {
             let c = look()
             if (c == '') {
                 break
+	    } else if(c == "#" && p == 0){ // top line comment
+		while (true) {
+			let c2 = get()
+			if (c2 == "" || c2 == "\n") {
+				whiteStart = p
+				break
+			}
+		}
             } else if(c == '-') {
 
                 if (look(1) == "-") {
@@ -508,7 +517,7 @@ function CreateLuaTokenStream(text) {
                     if (look() == '-' || look() == '+') {
                         p++
                     }
-                    while (Digits.includes(look())) {
+                    while (Digits.includes(look()) || look() === '_') {
                         p++
                     }
                 }
