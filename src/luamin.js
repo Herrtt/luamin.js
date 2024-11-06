@@ -168,6 +168,10 @@ let Keywords = [
     'until',    'while', 'continue'
 ]
 
+let IdentKeywords = [
+    'continue', 'goto'
+]
+
 let BlockFollowKeyword = [
     'else',     'elseif',
     'until',    'end'
@@ -339,6 +343,8 @@ function CreateLuaTokenStream(text) {
         let src = text.substr(tokenStart, (p - tokenStart))
         let ntype = null
         if (type == "Number") {
+            src = src.replace(/[\_]+/g, '');
+
             if (src.substr(0,2).toLowerCase() == "0x") {
                 ntype = 'hex'
                 if (parseInt(src, 16) < 999999999999)
@@ -644,6 +650,11 @@ function CreateLuaParser(text) {
         let tk = peek()
         if (tk.Type == type && (source == null || tk.Source == source)) {
             return get()
+        } else if(
+            (tk.Type == 'Keyword' && type == 'Ident') 
+            && IdentKeywords.includes(tk.Source) 
+            && (source == null || tk.Source == source)) {
+            return get()
         } else {
             let i
             for (i=-3; i<=3; i++) {
@@ -708,7 +719,7 @@ function CreateLuaParser(text) {
                 'GetLastToken': () => node.Token_CloseParen,
             })
             return node
-        } else if(tk.Type == "Ident") {
+        } else if((tk.Type == "Ident") || (tk.Type == "Keyword" && IdentKeywords.includes(tk.Source))) {
             let node
             node = MkNode({
                 'Type': 'VariableExpr',
@@ -764,7 +775,7 @@ function CreateLuaParser(text) {
                     "Token_CloseBracket": cbrac,
                     "Token_Equals": eq,
                 })
-            } else if(peek().Type == "Ident" && peek(1).Source == "=") {
+            } else if((peek().Type == "Ident" || (peek().Type == "Keyword" && IdentKeywords.includes(peek().Source))) && peek(1).Source == "=") {
                 // Field
                 let field = get()
                 let eq = get()
@@ -812,7 +823,7 @@ function CreateLuaParser(text) {
     function varlist(acceptVarg, localdecl) {
         let varList = []
         let commaList = []
-        if (peek().Type == "Ident") {
+        if ((peek().Type == "Ident") || (peek().Type == "Keyword" && IdentKeywords.includes(peek().Source))) {
             let idn = get()
             if (localdecl) {
                 if (peek().Source == '<' && peek(2).Source == '>') {
@@ -1373,7 +1384,7 @@ function CreateLuaParser(text) {
                 "GetLastToken": () => node.FunctionStat.GetLastToken(),
             })
             return node
-        } else if(peek().Type == "Ident") {
+        } else if(peek().Type == "Ident" || (peek().Type == "Keyword" && IdentKeywords.includes(peek().Source))) {
             let [varList, varCommaList ] = varlist(false, true)
             let exprList = []
             let exprCommaList = []
@@ -1450,6 +1461,9 @@ function CreateLuaParser(text) {
     }
 
     function continuestat(locals, upvals) {
+        if (peek(1).Source == '(')
+            return [false, exprstat(locals, upvals)]
+
         let continueKw = get()
         let self
         self = {
@@ -1458,7 +1472,8 @@ function CreateLuaParser(text) {
             "GetFirstToken": () => self.Token_Continue,
             "GetLastToken": () => self.Token_Continue,
         }
-        return self
+
+        return [true, self]
     }
 
     function gotostat() {
@@ -1522,7 +1537,7 @@ function CreateLuaParser(text) {
         } else if(tok.Source == "break") {
             return [true, breakstat(locals, upvals)]
         } else if(tok.Source == "continue") {
-            return [true, continuestat(locals, upvals)]
+            return continuestat(locals, upvals) //[true, continuestat(locals, upvals)]
         } else if(tok.Source == 'goto') {
             return [false, gotostat()]
         } else if(tok.Source == '::') {
@@ -1865,7 +1880,7 @@ function VisitAst(ast, visitors) {
                 visitExpr(ex)
             })
         } else {
-            throw "unreachable"
+            throw (`Unreachable code. Got ` + stat.Type)
         }
         postVisit(stat)
     }
