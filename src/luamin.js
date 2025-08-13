@@ -1115,6 +1115,8 @@ function CreateLuaParser(text) {
             return tableexpr(locals, upvals)
         } else if(tk.Source == "function") {
             return funcdecl(true, locals, upvals)
+        } else if(tk.Source == "if") {
+            return ifstat(true, locals, upvals)
         } else {
             return primaryexpr(locals, upvals)
         }
@@ -1211,11 +1213,11 @@ function CreateLuaParser(text) {
         }
     }
 
-    function ifstat(locals, upvals) {
+    function ifstat(isExpr, locals, upvals) {
         let ifKw = get()
         let condition = expr(locals, upvals)
         let thenKw = expect("Keyword", "then")
-        let ifBody = block(locals, upvals)
+        let ifBody = isExpr ? expr(locals, upvals) : block(locals, upvals)
         let elseClauses = []
         while (peek().Source == "elseif" || peek().Source == "else") {
             let elseifKw = get()
@@ -1225,7 +1227,7 @@ function CreateLuaParser(text) {
                 elseifCondition = expr(locals, upvals)
                 elseifThenKw = expect("Keyword", "then")
             }
-            let elseifBody = block(locals, upvals)
+            let elseifBody = isExpr ? expr(locals, upvals) : block(locals, upvals)
             elseClauses.push({
                 "Condition": elseifCondition,
                 "Body": elseifBody,
@@ -1238,10 +1240,10 @@ function CreateLuaParser(text) {
                 break
             }
         }
-        let enKw = expect("Keyword", "end")
+        let enKw = isExpr ? null : expect("Keyword", "end")
         let node
         node = MkNode({
-            "Type": "IfStat",
+            "Type": isExpr ? "IfExpr" : "IfStat",
             "Condition": condition,
             "Body": ifBody,
             "ElseClauseList": elseClauses,
@@ -1519,7 +1521,7 @@ function CreateLuaParser(text) {
     function statement(locals, upvals) {
         let tok = peek()
         if (tok.Source == "if") {
-            return [false, ifstat(locals, upvals)]
+            return [false, ifstat(false, locals, upvals)]
         } else if(tok.Source == "while") {
             return [false, whilestat(locals, upvals)]
         } else if(tok.Source == "do") {
@@ -1793,6 +1795,15 @@ function VisitAst(ast, visitors) {
         } else if(expr.Type == "CompoundStat") {
             visitExpr(expr.Lhs)
             visitExpr(expr.Rhs)
+        } else if(expr.Type == "IfExpr") {
+            visitExpr(expr.Condition)
+            visitExpr(expr.Body)
+            expr.ElseClauseList.forEach((clause) => {
+                if (clause.Condition != null) {
+                    visitExpr(clause.Condition)
+                }
+                visitExpr(clause.Body)
+            })
         } else {
             throw `unreachable, type: ${expr.Type}: ${expr}`
         }
@@ -2333,6 +2344,19 @@ function PrintAst(ast) {
             printt(expr.Token_CloseBrace)
         } else if(expr.Type == "CompoundStat") {
             printStat(expr)
+        } else if(expr.Type == "IfExpr") {
+            printt(expr.Token_If)
+            printExpr(expr.Condition)
+            printt(expr.Token_Then)
+            printExpr(expr.Body)
+            expr.ElseClauseList.forEach((clause) => {
+                printt(clause.Token)
+                if (clause.Condition != null) {
+                    printExpr(clause.Condition)
+                    printt(clause.Token_Then)
+                }
+                printExpr(clause.Body)
+            })
         } else {
             throw `unreachable, type: ${expr.Type}: ${expr}`
         }
@@ -2638,9 +2662,8 @@ function FormatAst(ast, indentation) {
             //}
         } else if(expr.Type == "UnopExpr") {
             trimToken(expr.Token_Op)
-            formatExpr(expr.Rhs)
-            if ( expr.Token_Op.Source[0])
             padToken(expr.Rhs.GetFirstToken())
+            formatExpr(expr.Rhs)
         } else if(expr.Type == "NumberLiteral" || expr.Type == "StringLiteral"
                 || expr.Type == "NilLiteral" || expr.Type == "BooleanLiteral"
                 || expr.Type == "VargLiteral" || expr.Type == 'HashLiteral')
@@ -2700,6 +2723,7 @@ function FormatAst(ast, indentation) {
         } else if(expr.Type == "ParenExpr") {
             trimToken(expr.Token_OpenParen)
             trimToken(expr.Token_CloseParen)
+            
             formatExpr(expr.Expression)
         } else if(expr.Type == "TableLiteral") {
             if (expr.EntryList.length == 0) {
@@ -2759,6 +2783,33 @@ function FormatAst(ast, indentation) {
             }
         } else if(expr.Type == 'CompoundStat') {
             formatStat(expr)
+        } else if(expr.Type == "IfExpr") {
+            formatExpr(expr.Condition)
+            padExpr(expr.Condition)
+            padToken(expr.Token_Then)
+
+            let lastBodyOpen = expr.Token_Then
+            let lastBody = expr.Body
+
+            expr.ElseClauseList.forEach((clause) => {
+                formatExpr(lastBody)
+                padToken(lastBody.GetFirstToken())
+                padToken(clause.Token)
+                padToken(lastBodyOpen)
+                lastBodyOpen = clause.Token
+
+                if (clause.Condition != null) {
+                    formatExpr(clause.Condition)
+                    padExpr(clause.Condition)
+                    padToken(clause.Token_Then)
+                    lastBodyOpen = clause.Token_Then
+                }
+                lastBody = clause.Body
+            })
+
+            formatExpr(lastBody)
+            padToken(lastBodyOpen)
+            padToken(lastBody.GetFirstToken())
         } else {
             print(expr)
             throw(`unreachable, type: ${expr.Type}:`+ expr)
@@ -3112,6 +3163,33 @@ function StripAst(ast) {
             stript(expr.Token_OpenParen)
             stripExpr(expr.Expression)
             stript(expr.Token_CloseParen)
+        } else if(expr.Type == "IfExpr") {
+            stript(expr.Token_If)
+            stripExpr(expr.Condition)
+            joint(expr.Token_If, expr.Condition.GetFirstToken())
+            joint(expr.Condition.GetLastToken(), expr.Token_Then)
+
+            let lastBodyOpen = expr.Token_Then
+            let lastBody = expr.Body
+
+            expr.ElseClauseList.forEach((clause, i) => {
+                joint(lastBodyOpen, lastBody.GetFirstToken())
+                joint(lastBody.GetLastToken(), clause.Token)
+                lastBodyOpen = clause.Token
+
+                if (clause.Condition != null) {
+                    stripExpr(clause.Condition)
+                    joint(clause.Token, clause.Condition.GetFirstToken())
+                    joint(clause.Condition.GetLastToken(), clause.Token_Then)
+                    lastBodyOpen = clause.Token_Then
+                }
+
+                stripExpr(clause.Body)
+                lastBody = clause.Body
+            })
+
+            joint(lastBodyOpen, lastBody.GetFirstToken())
+            //bodyjoint(lastBodyOpen, lastBody, expr.Token_End)
         } else if(expr.Type == "TableLiteral") {
             stript(expr.Token_OpenBrace)
             expr.EntryList.forEach((entry, index) => {
