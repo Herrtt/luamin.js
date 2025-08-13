@@ -1,6 +1,6 @@
 {
   "name": "lua-format",
-  "version": "1.5.3b",
+  "version": "1.5.3c",
   "description": "Lua Beautifier & Minifier, written in JavaScript.\r",
   "main": "src/index.js",
   "scripts": {
