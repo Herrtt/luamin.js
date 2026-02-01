@@ -3951,7 +3951,7 @@ function ValueTracking(ast) {
     }
 
     visitor.LocalFunctionStat = node => {
-        variables[node.NameChain[0].Token.Source] = node.FunctionStat
+        variables[node.FunctionStat.NameChain[0].Source] = node.FunctionStat
         return true
     }
 
