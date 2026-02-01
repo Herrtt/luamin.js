@@ -1900,7 +1900,7 @@ function AddVariableInfo(ast) {
     pushScope()
 
     function addLocalVar(name, setNameFunc, localInfo) {
-        assert(localInfo, "MIssing localInfo")
+        assert(localInfo, "Missing localInfo")
         assert(name, "Missing local var name")
         let _var = {
             "Type": "Local",
@@ -2046,6 +2046,7 @@ function AddVariableInfo(ast) {
                     stat.VarList[varNum].Source = name
                 }, {
                     "Type": "Local",
+                    "Expr": stat.ExprList
                 })
             })
         },
@@ -3420,651 +3421,6 @@ function StripAst(ast) {
     stripStat(ast)
 }
 
-
-function SolveMath(ast) { // This is some ugly code sorry for whoever is seeing this
-    let solveStat
-    let solveExpr
-
-    let canSolve = {
-        "NumberLiteral": true,
-        "BooleanLiteral": true,
-        "StringLiteral": true,
-        'HashLiteral': true,
-        "NilLiteral": true,
-        "TableLiteral": true,
-        "ParenExpr": true,
-        "BinopExpr": true,
-    }
-
-    function createtype(type, val, type2=null) {
-        let a
-        a = {
-            "Type": type,
-            "Token": {
-                "Type": type2 == null ? "Number" : type2,
-                "LeadingWhite": "",
-                "Source": val,
-            },
-            "GetFirstToken": () => a.Token,
-            "GetLastToken": () => a.Token,
-        }
-        return a
-    }
-
-    function createbinop(operator, lhs, rhs) {
-        let a
-        a = {
-            "Type": "BinopExpr",
-            "Token_Op": {"Type":"Symbol", "LeadingWhite":"", "Source": operator},
-            "Lhs": lhs,
-            "Rhs": rhs,
-            "GetFirstToken": () => a.Lhs.GetFirstToken(),
-            "GetLastToken": () => a.Rhs.GetLastToken(),
-        }
-        return a
-    }
-
-    function createunop(operator, rhs) {
-        let a
-        a = {
-            "Type": "UnopExpr",
-            "Token_Op": {"Type":"Symbol", "LeadingWhite":"", "Source": operator},
-            "Rhs": rhs,
-            "GetFirstToken": () => a.Token_Op,
-            "GetLastToken": () => a.Rhs.GetLastToken(),
-        }
-        return a
-    }
-
-    function removething(a) {
-        if (a == null || a.substr == null) return;
-
-        let start = a.substr(0,1)
-   
-        let ret
-        if (start == `"` || start == `'`) ret = a.substr(1,a.length-2);
-        if (start == `[`) {
-            let count = 0;
-            let p = 1;
-            while (a.substr(p, 1) == '=') {
-                count++;
-                p++;
-            }
-
-            ret = a.substr(2 + count, a.length - 4 - count - 2);
-        }
-        if (ret == null) return '';
-
-        let newret = ''
-        let i
-        for (i=0;i<=ret.length;i++) {
-            let c = ret.substr(i,1)
-
-            if (c == `'` || c == `"`) {
-                newret += `\\${c}`
-            } else {
-                newret += c
-            }
-        }
-        return newret
-    }
-
-    function removeParen(a) {
-        if (typeof a == "object" && a.Type == "ParenExpr")
-            return transformA2B(a, a.Expression)
-    }
-
-    function solvebinop(operator, left1, right1) {
-        let lhs = left1
-        let rhs = right1
-        if (left1 && left1.Type == "ParenExpr") lhs = left1.Expression;
-        if (right1 && right1.Type == "ParenExpr") rhs = right1.Expression;
-
-        if (lhs == null || rhs == null || lhs.Type == null || rhs.Type == null) return;
-
-        if (lhs.Type == "VariableExpr" || lhs.Type == "CallExpr" || lhs.Type == "BinopExpr" || rhs.Type == "CallExpr" || rhs.Type == "BinopExpr" || rhs.Type == "VariableExpr") {
-            // some shit later
-            // if lhs == true, rhs()
-            // if lhs == false, no rhs :(
-
-            return
-        }
-        //if (lhs.Type == "BinopExpr" || lhs.Type == "")
-
-        let a = (lhs.Token) || (lhs.Expression != null && lhs.Expression.Token) || null
-        let b = (rhs.Token) || (rhs.Expression != null && rhs.Expression.Token) || null
-
-        //if (a == null || b == null) return;
-        //if (a.Source == null || b.Source == null) return;
-
-        let lSrc = a != null ? a.Source : null
-        let rSrc = b != null ? b.Source : null
-
-        let left
-        let right
-        if (lhs.Type == "BooleanLiteral") left = lSrc == "true" ? true : false;
-        if (rhs.Type == "BooleanLiteral") right = rSrc == "true" ? true : false;
-
-        if (lhs.Type == "NumberLiteral") {
-            left = parseFloat(lSrc)
-            if (left == null) return;
-        }
-        if (rhs.Type == "NumberLiteral") {
-            right = parseFloat(rSrc)
-            if (right == null) return;
-        }
-
-        if (lhs.Type == "StringLiteral" || lhs.Type == 'HashLiteral') left = lSrc.toString();
-        if (rhs.Type == "StringLiteral" || rhs.Type == 'HashLiteral') right = rSrc.toString();
-
-
-        //  && lhs.Type == "NumberLiteral" && rhs.Type == "NumberLiteral"
-        if (left != null && right != null) {
-            if (operator == "==") return left == right;
-            if (operator == "~=") return left != right;
-            if (operator == "and") return left && right;
-            if (operator == "or") return left || right;
-            if (operator == ".." && lhs.Type == "StringLiteral" && rhs.Type == "StringLiteral")
-                return `"${removething(lSrc) + removething(rSrc)}"`;
-
-            if (lhs.Type == "StringLiteral") left = parseFloat(removething(left));
-            if (rhs.Type == "StringLiteral") right = parseFloat(removething(right));
-
-            if (left == null || right == null) return;
-
-            let val
-            if (operator == "+") val = left + right;
-            if (operator == "-") val = left - right;
-            if (operator == "*") val = left * right;
-            if (operator == "/") val = left / right;
-            if (operator == "^") val = left ** right;
-            if (operator == "%") val = left % right;
-
-            if (operator == ">") val = left > right;
-            if (operator == "<") val = left < right;
-            if (operator == ">=") val = left >= right;
-            if (operator == "<=") val = left <= right;
-
-            if (val == false || val == true || (isFinite(val) && val > -(10 ** 6) && val < 10 ** 6 ))
-                return val;
-        }
-    }
-
-    function solveunop(operator, rhs) {
-        let b = rhs.Token || rhs.Expression || rhs.EntryList || rhs
-
-        if (b == null) return;
-        if (b.Source == null && rhs.Type != "TableLiteral") return;
-
-        if (rhs.Type == "VariableExpr" || rhs.Type == "CallExpr" || rhs.Type == "BinopExpr") {
-            return
-        }
-
-        let rSrc = b.Source
-        let right
-
-        if (rhs.Type == "TableLiteral" && b != null) {
-            let extra = []
-            let amount = 0
-            let ignoreRest = false
-            let no = false
-            let lastIndex = 0
-
-            b.forEach((v,i) => {
-                if (ignoreRest) {
-                    extra.push(v)
-                } else {
-                    if (v.EntryType == "Value" || v.EntryType == "Index") {
-                        if ((v.Index == null || v.Index.Type == "NumberLiteral") && v.Value) {
-
-                            let index = (v.Index != null && v.Index.Token != null && v.Index.Token.Source !== null) ? (v.Index.Token.Source) : lastIndex + 1
-
-                            if (index.toString() !== (++lastIndex).toString()) {
-                                ignoreRest = true
-                                no = true
-                                return extra.push(v)
-                            }
-
-                            if (v.Value.Type != "CallExpr") {
-                                amount++
-                            } else {
-                                ignoreRest = true
-                                extra.push(v)
-                            }
-
-                        } else {
-                            extra.push(v)
-                            //no = true
-                        }
-                    }
-                }
-            })
-            // this became a mess really quick
-
-            if (no) {
-                return
-            }
-
-            if (operator == "#") {
-
-                rhs.EntryList = extra
-
-                if (rhs.EntryList.length <= 0) {
-                    return createtype("NumberLiteral", amount !== null ? amount : rhs.EntryList.length)
-                } else if(amount <= 0) {
-                    return createunop("#", rhs)
-                }
-
-                let newex = createbinop("+", createtype("NumberLiteral", amount), createunop("#", rhs));
-                return newex
-            }
-        }
-
-        if (rhs.Type == "BooleanLiteral") right = rSrc == "true" ? true : false;
-        if (rhs.Type == "NumberLiteral") {
-            right = parseFloat(rSrc)
-            if (right === null) return;
-        }
-        if (rhs.Type == "StringLiteral") right = rSrc.substr(1,rSrc.length - 2);
-
-        if (operator == "not" && rhs.Type !== null) {
-
-            if (rhs.Type == "NilLiteral" || (rhs.Type == "BooleanLiteral" && right === false)) return true;
-
-            return false
-        }
-
-        if (right != null) {
-            if (operator == "#") return right.length;
-            if (operator == "-") return -right;
-        }
-    }
-
-
-    solveExpr = function(expr) {
-        if (expr.Type == "BinopExpr") {
-            //if (expr.Lhs != null && canSolve[expr.Lhs.Type] != true) {
-                solveExpr(expr.Lhs)
-            //}
-
-            //if (expr.Rhs != null && canSolve[expr.Rhs.Type] != true) {
-                solveExpr(expr.Rhs)
-            //}
-
-            //  && canSolve[expr.Lhs.Type] == true |  && canSolve[expr.Rhs.Type] == true
-            if (expr.Lhs != null && expr.Rhs != null) {
-                let tokenOp = expr.Token_Op
-
-                if (tokenOp != null && tokenOp.Source != null) {
-                    let val = solvebinop(tokenOp.Source, expr.Lhs, expr.Rhs)
-
-                    if (val != null) {
-                        if (typeof(val) == "boolean") {
-                            let b = createtype("BooleanLiteral", val.toString(), "Keyword")
-                            transformA2B(expr, b)
-                            return
-                        } else if(typeof(val) == "number") {
-                            if (isFinite(val) == true) {
-                                let num = createtype("NumberLiteral", val.toString(), "Number")
-                                transformA2B(expr, num)
-                                return
-                            }
-                        } else if(typeof(val) == "string") {
-                            let str = createtype("StringLiteral", val, "String")
-                            transformA2B(expr, str)
-
-                            return
-                        } else if(typeof(val) == "object") {
-                            transformA2B(expr, val)
-                            return
-                        }
-                        return
-                    }
-                }
-
-                if (expr.Lhs.Type == "ParenExpr") {
-                    let exprt = expr.Lhs
-                    let expression = exprt.Expression
-                    if(expression.Type == "NumberLiteral" || expression.Type == "StringLiteral"
-                        || expression.Type == "NilLiteral" || expression.Type == "BooleanLiteral" || expression.Type == 'HashLiteral')
-                    {
-                        //expr.Lhs = expression
-                    }
-                }
-                if (expr.Rhs.Type == "ParenExpr") {
-                    let exprt = expr.Rhs
-                    let expression = exprt.Expression
-                    if(expression.Type == "NumberLiteral" || expression.Type == "StringLiteral"
-                        || expression.Type == "NilLiteral" || expression.Type == "BooleanLiteral" || expression.Type == 'HashLiteral')
-                    {
-                        //expr.Rhs = expression
-                    }
-                }
-            }
-        } else if(expr.Type == "UnopExpr") {
-
-            //if (expr.Rhs != null && canSolve[expr.Rhs.Type] != true) {
-                solveExpr(expr.Rhs)
-            //}
-
-            if (expr.Rhs != null && canSolve[expr.Rhs.Type] == true) {
-                let tokenOp = expr.Token_Op
-
-                if (tokenOp != null && tokenOp.Source != null) {
-                    let rhs = expr.Rhs.Expression != null ? expr.Rhs.Expression : expr.Rhs
-                    let val = solveunop(tokenOp.Source, rhs)
-
-                    if (val != null) {
-                        if (typeof(val) == "boolean") {
-                            let b = createtype("BooleanLiteral", val.toString(), "Keyword")
-                            transformA2B(expr, b)
-                            return
-                        } else if(typeof(val) == "number") {
-                            if (isFinite(val) == true) {
-                                let num = createtype("NumberLiteral", val, "Number")
-                                transformA2B(expr, num)
-                                return
-                            }
-                        } else if(typeof(val) == "string") {
-                            let str = createtype("StringLiteral", val, "String")
-
-                            transformA2B(expr, str)
-
-                            return
-                        } else if(typeof(val) == "object") {
-                            transformA2B(expr, val)
-                            return
-                        }
-                        return
-                    }
-                }
-            }
-
-            //solveExpr(expr.Rhs)
-        } else if(expr.Type == "NumberLiteral" || expr.Type == "StringLiteral"
-                || expr.Type == "NilLiteral" || expr.Type == "BooleanLiteral"
-                || expr.Type == "VargLiteral" || expr.Type == 'HashLiteral')
-        {
-            // ...
-            let token = expr.Token
-            if (token != null) {
-                if (token.Type == "Number") {
-                    let int = token.Source.toString().split('e')
-                    if (int.length === 2) {
-                        let l = parseFloat(int[0])
-                        let r = parseFloat(int[1])
-                        if (isFinite(l) && isFinite(r) && (l ** r) < 999999999 && (!token.Source.includes('+') && !!token.Source.includes('.') && !token.Source.includes('-')))
-                            token.Source = (l ** r).toString();
-                    }
-                }
-
-                if (token.Type == "String") {
-                    token.Source = token.Source.replace(/\\\d+/gi, (got) => {
-                        let num = parseFloat(got.substr(1,got.length-1))
-
-                        if (num && isFinite(num) && (
-                            (num >= 97 && num <= 122)
-                            || (num >= 65 && num <= 90)
-                            || (num >= 33 && num <= 47)
-                            || (num >= 58 && num <= 64)
-                            || (num >= 91 && num <= 96)
-                            || (num >= 123 && num <= 126)
-                            ) && num !== 34 && num !== 39 && num !== 92
-                        )  {
-                          return String.fromCharCode(num)
-                        }
-
-                        return got
-                    })
-                }
-            }
-
-
-        } else if(expr.Type == "FieldExpr") {
-            solveExpr(expr.Base)
-        } else if(expr.Type == "IndexExpr") {
-            solveExpr(expr.Base)
-            solveExpr(expr.Index)
-        } else if(expr.Type == "MethodExpr" || expr.Type == "CallExpr") {
-            solveExpr(expr.Base)
-            if(expr.FunctionArguments.CallType == "ArgCall") {
-                expr.FunctionArguments.ArgList.forEach((argExpr, index) => {
-                    solveExpr(argExpr)
-                })
-            } else if(expr.FunctionArguments.CallType == "TableCall") {
-                solveExpr(expr.FunctionArguments.TableExpr)
-            }
-
-
-            // This causes a few problems.
-            /*if (expr.Base.Type === 'ParenExpr'
-                && expr.Base.Expression.Type === 'FunctionLiteral'
-                && expr.FunctionArguments.CallType === 'ArgCall')
-            {
-                let fLit = expr.Base.Expression
-                expr.FunctionArguments.ArgList.forEach((v, i) => {
-                    let c = expr.FunctionArguments.ArgList[i]
-
-                    if (c !== undefined && (
-                        c.Type == "NumberLiteral" || c.Type == "StringLiteral"
-                        || c.Type == "NilLiteral" || c.Type == "BooleanLiteral"
-                        || c.Type == 'HashLiteral'
-                        )) {
-
-                        let v = fLit.ArgList[i]
-                        if (v) {
-                            v.var.RenameList.forEach(func => {
-                                func(c.Token.Source, true)
-                            })
-                        }
-                    }
-                })
-            }*/
-
-        } else if(expr.Type == "FunctionLiteral") {
-            solveStat(expr.Body)
-        } else if(expr.Type == "VariableExpr") {
-            // Dont care
-        } else if(expr.Type == "ParenExpr") {
-            let exprExpr = expr.Expression
-            if (exprExpr != null && exprExpr.Type == "ParenExpr") {
-                expr.Expression = exprExpr.Expression
-            }
-
-            solveExpr(expr.Expression)
-
-            if(expr.Type == "NumberLiteral" || expr.Type == "StringLiteral"
-                || expr.Type == "NilLiteral" || expr.Type == "BooleanLiteral"
-                || expr.Type == "VargLiteral" || expr.Type == 'HashLiteral')
-            {
-                removeParen(expr)
-            }
-        } else if(expr.Type == "TableLiteral") {
-            expr.EntryList.forEach((entry, index) => {
-                if (entry.EntryType == "Field") {
-                    solveExpr(entry.Value)
-                } else if(entry.EntryType == "Index") {
-                    solveExpr(entry.Index)
-                    solveExpr(entry.Value)
-                } else if(entry.EntryType == "Value") {
-                    solveExpr(entry.Value)
-                } else {
-                    assert(false, "unreachable")
-                }
-            })
-        } else {
-            //throw(`unreachable, type: ${expr.Type}:${expr}  ${console.trace()}`)
-        }
-    }
-
-    solveStat = function(stat) {
-        if (stat.Type == "StatList") {
-            stat.StatementList.forEach((ch, index) => {
-                if (ch === null || ch.Type === null) {
-                    return
-                }
-
-                ch.Remove = () => {
-                    stat.StatementList[index] = null
-                }
-
-                solveStat(ch);
-            })
-        } else if(stat.Type == "BreakStat") {
-            // no
-        } else if(stat.Type == "ContinueStat") {
-            // fuck off
-        } else if(stat.Type == "ReturnStat") {
-            stat.ExprList.forEach((expr, index) => {
-                solveExpr(expr)
-            })
-        } else if(stat.Type == "LocalVarStat") {
-            if (stat.Token_Equals != null) {
-                stat.ExprList.forEach((expr, index) => {
-                    solveExpr(expr)
-                })
-            }
-        } else if(stat.Type == "LocalFunctionStat") {
-            solveStat(stat.FunctionStat.Body)
-
-            if (stat.FunctionStat.NameChain.length === 1) {
-                if (stat.FunctionStat.NameChain[0].UseCount === 0) {
-                    //return stat.Remove()
-                }
-            }
-
-        } else if(stat.Type == "FunctionStat") {
-            solveStat(stat.Body)
-        } else if(stat.Type == "RepeatStat") {
-            solveStat(stat.Body)
-            solveExpr(stat.Condition)
-
-            if (stat.Body.Type == "StatList" && stat.Body.StatementList.length === 0) {
-                //return stat.Remove()
-            }
-        } else if(stat.Type == "GenericForStat") {
-            stat.GeneratorList.forEach((expr, index) => {
-                solveExpr(expr)
-            })
-            solveStat(stat.Body)
-        } else if(stat.Type == "NumericForStat") {
-            stat.RangeList.forEach((expr, index) => {
-                solveExpr(expr)
-            })
-            solveStat(stat.Body)
-
-
-            let a = stat.RangeList[0]
-            let b = stat.RangeList[1]
-            let c = stat.RangeList[2]
-            if (a == null || b == null) {
-                return stat.Remove()
-            }
-
-            removeParen(a)
-            removeParen(b)
-            removeParen(c)
-
-            if (a.Type != "NumberLiteral" || b.Type != "NumberLiteral" || (c != null && c.Type != "NumberLiteral" || c == null) ) {
-                return // Nope.
-            }
-
-            let start = parseFloat(a.Token.Source)
-            let end = parseFloat(b.Token.Source)
-            let step = (c != null && parseFloat(c.Token.Source)) || 1
-
-            let t1 = ((step > 0 && start <= end) || (step < 0 && start >= end))
-            let t2 = ((end - start) + step) / step
-
-            let willRun = t1 && t2 >= 0
-
-            if (!willRun) {
-                return stat.Remove()
-            }
-
-            if (stat.Body.Type == "StatList" && stat.Body.StatementList.length === 0) {
-                return stat.Remove()
-            }
-        } else if(stat.Type == "WhileStat") {
-            solveExpr(stat.Condition)
-            solveStat(stat.Body)
-
-            let condition = stat.Condition
-            switch (condition.Type) {
-                case "ParenExpr": {
-                    condition = condition.Expression
-                }
-                case "BooleanLiteral": {
-                    if (condition == null || condition.Token == null || condition.Token.Source !== "false") {
-                        break
-                    }
-                }
-                case "NilLiteral":
-                    stat.Remove()
-                    break
-
-                default: break
-            }
-        } else if(stat.Type == "DoStat") {
-            solveStat(stat.Body)
-
-            if (stat.Body === null || (stat.Body.Type == "StatList" && stat.Body.StatementList.length === 0)) {
-                return stat.Remove()
-            } else if(stat.Body.StatementList.length === 1) {
-                let s = stat.Body.StatementList[0]
-                if (s !== null) {
-                    if (s.Type !== 'ContinueStat'
-                        && s.Type !== 'BreakStat'
-                        && s.Type !== 'ReturnStat') {
-                        transformA2B(stat, s)
-                    }
-                }
-            }
-        } else if(stat.Type == "IfStat") {
-            solveExpr(stat.Condition)
-            solveStat(stat.Body)
-            stat.ElseClauseList.forEach((clause, i) => {
-                if (clause.Condition != null) {
-                    solveExpr(clause.Condition)
-                }
-                solveStat(clause.Body)
-            })
-
-            let condition = stat.Condition
-            switch (condition.Type) {
-                case "ParenExpr": {
-                    condition = condition.Expression
-                }
-                case "BooleanLiteral": {
-                    if (stat.ElseClauseList.length >= 1 || condition == null || condition.Token == null || condition.Token.Source !== "false") {
-                        break
-                    }
-                }
-                case "NilLiteral":
-                    stat.Remove()
-                    break
-
-                default: break
-            }
-        } else if(stat.Type == "CallExprStat") {
-            solveExpr(stat.Expression)
-        } else if(stat.Type == "CompoundStat") {
-            solveExpr(stat.Lhs)
-            solveExpr(stat.Rhs)
-        } else if(stat.Type == "AssignmentStat") {
-            stat.Lhs.forEach((ex, index) => {
-                solveExpr(ex)
-            })
-            stat.Rhs.forEach((ex, index) => {
-                solveExpr(ex)
-            })
-        }
-    }
-
-    solveStat(ast)
-}
-
-
 let VarDigits = []
 
 let i
@@ -4546,7 +3902,99 @@ function foldBinary(result, op, la, ra) {
     }
 }
 
-function SolveSimpleMath(ast) {
+function ValueTracking(ast) {
+    let globals = {}
+    let variables = {}
+
+    function assign(variable) {
+        if (variable.Type == 'VariableExpr') {
+            // variable.Info.Type == 'Local'
+            // remember to remove if
+            if (variables[variable.Token.Source])
+                variables[variable.Token.Source].written = true
+        } // else if Global
+        else {
+            // visit
+        }
+    }
+
+    let visitor = {}
+
+    // VariableExpr
+    visitor.LocalVarStat = node => {
+        for (let i = 0; i < node.VarList.length && i < node.ExprList.length; ++i) {
+            variables[node.VarList[i].Source] = node.ExprList[i]
+        }
+
+        for (let i = node.ExprList.length; i < node.VarList.length; ++i) {
+            variables[node.VarList[i].Source] = null
+        }
+
+        return true
+    }
+
+    visitor.AssignmentStat = node => {
+        for (let i = 0; i < node.Lhs.length; ++i) {
+            assign(node.Lhs[i])
+        }
+
+        for (let i = 0; i < node.Rhs.length; ++i) {
+            visitor.VisitExpr(node.Rhs[i])
+        }
+        
+        return false
+    }
+
+    visitor.CompoundStat = node => {
+        assign(node.Lhs)
+        return false
+    }
+
+    visitor.LocalFunctionStat = node => {
+        variables[node.NameChain[0].Token.Source] = node.FunctionStat
+        return true
+    }
+
+    visitor.FunctionStat = node => {
+        assign(node.NameChain[0])
+        return false
+    }
+
+    visitor.FunctionLiteral = node => {
+        node.ArgList.forEach(v => {
+            variables[v.var.Name] = null
+        })
+        return false
+    }
+
+    VisitAst(ast, visitor)
+    return [ variables, globals ]
+}
+
+function SolveSimpleMath(ast, variables, globals) {
+    let locals = {}
+    let constants = {}
+    let wasEmpty = variables.length === 0 && locals.length === 0
+
+    function recordConstant(map, key, value) {
+        if (value.Type !== 'Unknown') {
+            map[key] = value
+        } else if (wasEmpty) {
+            ;
+        } else if (old = map[key]) {
+            old.Type = 'Unknown'
+        }
+    }
+
+    function recordValue(local, value) {
+        let v = variables[local.Source]
+        if (!v) return;
+        if (!v.written) {
+            v.constant = (value.Type !== 'Unknown')
+            recordConstant(locals, local.Source, value)
+        }
+    }
+
     let analyze;
     analyze = node => {
         let result = {
@@ -4579,21 +4027,27 @@ function SolveSimpleMath(ast) {
                 
                 break
 
-            /*case 'IfStat':
+            case 'VariableExpr':
+                let l = locals[node.Variable.Name]
+                if (l)
+                    result = l
+                break
+
+            case 'IfStat':
                 if (node.ElseClauseList.length === 1 && node.ElseClauseList[0].ClauseType === 'else') {
                     let cond = analyze(node.Condition)
-                    let trueExpr = analyze(node.Condition)
-                    let falseExpr = analyze(node.ElseClauseList[0])
-
-                    if (cond.Type === 'Unknown') {
-                        transformA2B()
+                    //let trueExpr = analyze(node.Body)
+                    //let falseExpr = analyze(node.ElseClauseList[0])
+                    if (cond.Type !== 'Unknown') {
+                        transformA2B(result, isTruthful(cond) ? node.Body : node.ElseClauseList[0].Body)
                     }
                 }
-                break*/
+                break
             
             default:
                 break
         }
+        //recordConstant(constants, node, result)
 
         return result
     }
@@ -4622,11 +4076,33 @@ function SolveSimpleMath(ast) {
             transformA2B(expr, result)
     }
 
-    /*visitor.IfStat = stat => {
+    visitor.IfStat = stat => {
         let result = analyze(stat)
         if (result.Type !== 'Unknown')
             transformA2B(stat, result)
-    }*/
+    }
+
+    visitor.LocalVarStat = node => {
+        for (let i = 0; i < node.VarList.length && i < node.ExprList.length; ++i) {
+            let arg = analyze(node.ExprList[i])
+            //console.log(node.ExprList[i])
+            recordValue(node.VarList[i], arg)
+        }
+
+        if (node.VarList.length > node.ExprList.length) {
+            let last = node.ExprList.length > 0 ? node.ExprList[node.ExprList.length - 1] : null
+            let multRet = last && (last.Type === 'CallExpr' || last.Type === 'VargLiteral')
+            if (!multRet) {
+                for (let i = node.ExprList.length; i < node.VarList.length; ++i) {
+                    recordValue(node.VarList[i], { Type: 'Unknown' }) // should be nil
+                }
+            }
+        } else {
+            for (let i = node.VarList.length; i < node.ExprList.length; ++i) {
+                analyze(node.ExprList[i])
+            }
+        }
+    }
 
     VisitAst(ast, visitor)
 }
@@ -4667,7 +4143,8 @@ luaminp.Beautify = function(scr, options) {
         RemoveExtraDoStatements(ast)
         RemoveExtraParenExpr(ast)
 
-        SolveSimpleMath(ast)
+        let [ variables, globals ] = ValueTracking(ast)
+        SolveSimpleMath(ast, variables, globals)
         //SolveMath(ast) // oboy
         //SolveCFlow(ast) 
     }
